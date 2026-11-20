@@ -208,9 +208,9 @@ test("OTP verification shares the per-phone issuance lock before reading a chall
 
 test("chat and signaling sockets tolerate transient session verification failures", () => {
   assert.match(server, /let verificationFailures = 0/);
-  assert.match(server, /verificationFailures = 0;[\\s\\S]*verificationFailures \+= 1;[\\s\\S]*verificationFailures >= 3/);
+  assert.match(server, /verificationFailures = 0;[\s\S]*verificationFailures \+= 1;[\s\S]*verificationFailures >= 3/);
   assert.match(server, /let authVerificationFailures = 0/);
-  assert.match(server, /authVerificationFailures = 0;[\\s\\S]*authVerificationFailures \+= 1;[\\s\\S]*authVerificationFailures >= 3/);
+  assert.match(server, /authVerificationFailures = 0;[\s\S]*authVerificationFailures \+= 1;[\s\S]*authVerificationFailures >= 3/);
   assert.match(server, /if \(!current \|\| current\.id !== user\.id\) ws\.close\(1008, "Session expired"\)/);
 });
 
