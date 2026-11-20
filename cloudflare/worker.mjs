@@ -3,7 +3,10 @@ const JSON_HEADERS = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "X-Frame-Options": "DENY"
+  "X-Frame-Options": "DENY",
+  "Permissions-Policy": "camera=(self), microphone=(self), geolocation=()",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "X-Permitted-Cross-Domain-Policies": "none"
 };
 
 function unavailable(service) {
@@ -40,6 +43,11 @@ export default {
       });
     }
 
-    return env.ASSETS.fetch(request);
+    const assetResponse = await env.ASSETS.fetch(request);
+    const headers = new Headers(assetResponse.headers);
+    for (const [name, value] of Object.entries(JSON_HEADERS)) {
+      if (name.toLowerCase() !== "content-type" && name.toLowerCase() !== "cache-control") headers.set(name, value);
+    }
+    return new Response(assetResponse.body, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
   }
 };
