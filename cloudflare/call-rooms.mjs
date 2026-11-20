@@ -12,7 +12,9 @@ export class CallRooms {
   try { if (!origin || new URL(origin).origin !== new URL(request.url).origin) return new Response('Invalid signaling origin.', { status: 403 }); } catch { return new Response('Invalid signaling origin.', { status: 403 }); }
   const token = cookieToken(request); if (!token || token.length > 200) return new Response('Sign in required.', { status: 401 });
   const hash = await tokenHash(token);
-  const session = await withDatabase(this.env, client => client.query('SELECT u.id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash]));
+  let session;
+  try { session = await withDatabase(this.env, client => client.query('SELECT u.id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash])); }
+  catch { return new Response('Signaling service unavailable.', { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' } }); }
   if (!session.rowCount) return new Response('Sign in required.', { status: 401 });
   const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
   this.ctx.acceptWebSocket(server);
