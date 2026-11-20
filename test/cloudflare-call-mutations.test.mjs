@@ -23,7 +23,7 @@ test('call invitation refuses a busy participant', async () => {
 });
 test('accepting a call locks both participants and rejects a newly blocked pair', async () => {
  const client = db({ accepted: false }); const response = await handleCallMutation(req('/api/calls/respond', { inviteId: '11111111-1111-4111-8111-111111111111', action: 'accept' }), client, {});
- assert.equal(response.status, 404); assert.ok(client.calls.some(call => call.sql.includes('pg_advisory_xact_lock'))); assert.ok(client.calls.some(call => call.sql === 'ROLLBACK'));
+ assert.equal(response.status, 403); assert.ok(client.calls.some(call => call.sql.includes('pg_advisory_xact_lock'))); assert.ok(client.calls.some(call => call.sql === 'ROLLBACK'));
 });
 test('decline updates only the ringing invite addressed to the current user', async () => {
  const client = db(); const response = await handleCallMutation(req('/api/calls/respond', { inviteId: '11111111-1111-4111-8111-111111111111', action: 'decline' }), client, {});
