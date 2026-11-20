@@ -30,7 +30,7 @@ export async function handleCallMutation(request, client, env) {
     if (active.rowCount) { await client.query('ROLLBACK'); return json(409, { error: 'You or this contact is already busy with another call.' }); }
     const created = await client.query('INSERT INTO call_invites (caller_id, callee_id) VALUES ($1, $2) RETURNING id, caller_id, callee_id, status, created_at, expires_at', [user.id, contactId]);
     await client.query('COMMIT');
-    await publishUserEvent(env, contactId, { type: 'call-update' });
+    await Promise.all([user.id, contactId].map(userId => publishUserEvent(env, userId, { type: 'call-update' })));
     return new Response(JSON.stringify({ invite: created.rows[0] }), { status: 201, headers: HEADERS });
    } catch (error) { try { await client.query('ROLLBACK'); } catch {} if (error.code === '23505') return json(409, { error: 'You or this contact is already busy with another call.' }); throw error; }
   }
