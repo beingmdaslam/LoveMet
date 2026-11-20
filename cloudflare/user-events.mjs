@@ -5,7 +5,7 @@ function cookieToken(request) { for (const part of String(request.headers.get('c
 async function tokenHash(token) { const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)); return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join(''); }
 function send(ws, value) { try { if (ws.readyState === 1) ws.send(JSON.stringify(value)); } catch {} }
 export async function publishUserEvent(env, userId, payload) {
- if (!env.USER_EVENTS || !userId || !payload || typeof payload.type !== 'string') return;
+ if (!env?.USER_EVENTS || !userId || !payload || typeof payload.type !== 'string') return;
  const id = env.USER_EVENTS.idFromName(String(userId));
  try { await env.USER_EVENTS.get(id).fetch('https://internal.lovemet/publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch { /* HTTP polling remains the fallback if realtime delivery is unavailable. */ }
 }
