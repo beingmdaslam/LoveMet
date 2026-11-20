@@ -1,5 +1,5 @@
-const CACHE_NAME = "lovemet-shell-v1";
-const APP_SHELL = ["/", "/manifest.webmanifest"];
+const CACHE_NAME = "lovemet-shell-v2";
+const APP_SHELL = ["/", "/manifest.webmanifest", "/lovemet-icon.svg"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
@@ -8,20 +8,27 @@ self.addEventListener("install", event => {
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+    caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith("lovemet-shell-") && key !== CACHE_NAME).map(key => caches.delete(key))))
   );
   self.clients.claim();
 });
 
 self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
-  event.respondWith(
-    fetch(event.request).then(response => {
-      if (response.ok) {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-      }
-      return response;
-    }).catch(() => caches.match(event.request).then(cached => cached || caches.match("/")))
-  );
+  const request = event.request;
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.origin !== self.location.origin) return;
+
+  // Never cache authenticated API responses, signaling traffic, or user data.
+  if (url.pathname.startsWith("/api/") || url.pathname === "/signal") return;
+
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(() => caches.match("/"))
+    );
+    return;
+  }
+
+  if (APP_SHELL.includes(url.pathname)) {
+    event.respondWith(caches.match(request).then(cached => cached || fetch(request)));
+  }
 });
