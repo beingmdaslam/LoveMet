@@ -53,7 +53,16 @@ chatWss.on("connection", async (ws, req) => {
   try {
     const user = await getUser(req);
     if (!user) { ws.close(1008, "Sign in required"); return; }
-    addClient(user.id, ws);
+    if (!addClient(user.id, ws)) { ws.close(1013, "Too many chat connections"); return; }
+    const authTimer = setInterval(async () => {
+      try {
+        const current = await getUser(req);
+        if (!current || current.id !== user.id) ws.close(1008, "Session expired");
+      } catch {
+        ws.close(1011, "Session verification unavailable");
+      }
+    }, 60000);
+    ws.once("close", () => clearInterval(authTimer));
     ws.on("message", () => ws.close(1008, "Chat socket is receive-only"));
   } catch {
     ws.close(1011, "Chat authentication unavailable");
