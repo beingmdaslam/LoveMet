@@ -150,6 +150,9 @@ test("call invitations share the block pair lock and serialize per-caller quota"
   assert.match(route, /await client\.query\("BEGIN"\)/);
   assert.match(route, /LEAST\(\$1::text, \$2::text\)/);
   assert.match(route, /GREATEST\(\$1::text, \$2::text\)/);
+  assert.match(route, /lockCallParticipants\(client, user\.id, contactId\)/);
+  assert.match(route, /caller_id = ANY\(\$1::uuid\[\]\) OR callee_id = ANY\(\$1::uuid\[\]\)/);
+  assert.match(route, /You or this contact is already busy with another call/);
   assert.match(route, /FROM user_blocks b/);
   assert.match(route, /hashtextextended\(\$1::text, 2\)/);
   assert.match(route, /SELECT COUNT\(\*\)::INTEGER AS total FROM call_invites/);
@@ -164,6 +167,9 @@ test("accepting a call invitation shares the block pair lock", () => {
   assert.match(accept, /await client\.query\("BEGIN"\)/);
   assert.match(accept, /SELECT caller_id, callee_id FROM call_invites/);
   assert.match(accept, /pg_advisory_xact_lock\(hashtextextended/);
+  assert.match(accept, /lockCallParticipants\(client, callerId, user\.id\)/);
+  assert.match(accept, /id <> \$1 AND status IN \('ringing','accepted'\)/);
+  assert.match(accept, /You or this contact is already busy with another call/);
   assert.match(accept, /FROM user_blocks b/);
   assert.match(accept, /await client\.query\("COMMIT"\)/);
   assert.match(accept, /client\.release\(\)/);
