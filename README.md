@@ -20,7 +20,7 @@ The unauthenticated `GET /healthz` endpoint returns HTTP 200 only when the backe
 5. Open `http://localhost:3000` in two browser windows or devices on the same network. For another device, configure the host firewall; camera/microphone access requires HTTPS or localhost.
 
 ## Important limitations
-This is a prototype, not a production-ready calling service. It currently uses a public STUN server and has no TURN server, call history, push notifications, abuse reporting, or end-to-end identity verification. Backend foundations for phone OTP authentication, profiles, contacts and text messaging are present, with an initial account/contacts/chat interface. The Supabase PostgreSQL schema has been created and verified; the Node server still needs its secure database URL and SMS provider credentials configured before live login and messaging can be tested. Calls may fail on restrictive mobile or corporate networks until a TURN service is configured. Public deployment must use HTTPS/WSS and appropriate security, privacy, rate-limiting, and abuse protections.
+This is a prototype, not a production-ready calling service. It currently uses a public STUN server and has no TURN server, call history, push notifications, abuse reporting, or end-to-end identity verification. Backend foundations for phone OTP authentication, profiles, contacts and text messaging are present, with an initial account/contacts/chat interface. The Supabase PostgreSQL schema has been created and verified; the Node server still needs its secure database URL and SMS provider credentials configured before live login and messaging can be tested. A Cloudflare Workers migration scaffold is maintained in `cloudflare/` and `wrangler.jsonc`; it is not deployed and intentionally returns HTTP 503 for backend routes until the Fetch-native APIs and Durable Objects are implemented and tested. Calls may fail on restrictive mobile or corporate networks until a TURN service is configured. Public deployment must use HTTPS/WSS and appropriate security, privacy, rate-limiting, and abuse protections.
 
 Do not use this prototype for sensitive or confidential calls.
 
@@ -75,7 +75,7 @@ The mobile interface now includes username search, contact requests, accepted co
 - `DELETE /api/account` deletes the authenticated account and cascades its contacts, messages, sessions, and call history; OTP challenges for the phone number are deleted in the same transaction.
 
 ## Supabase database status
-The LoveMet Supabase project contains the nine core tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, `messages`, `call_invites`, `user_blocks`, and `user_reports`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
+The LoveMet Supabase project contains nine tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, `messages`, `call_invites`, `user_blocks`, `user_reports`, and `api_rate_limits`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
 
 Before live integration, configure these server-side environment variables in the hosting platform:
 - `DATABASE_URL`: Supabase PostgreSQL connection string (use the provider-recommended pooler if direct connectivity is unavailable).
@@ -85,3 +85,7 @@ Before live integration, configure these server-side environment variables in th
 - Optional `TURN_URLS` and `TURN_SHARED_SECRET`: TURN relay URLs and a private shared secret for short-lived, per-user TURN credentials. The browser receives only a 10-minute credential, never the shared secret.
 
 Never commit real credentials or paste them into source files. Deployment is intentionally deferred until development and tests are complete and separately approved.
+
+
+## Cloudflare migration
+The selected hosting target is Cloudflare Workers with Static Assets, Durable Objects and Hyperdrive, while Supabase PostgreSQL remains the database. See [`cloudflare/README.md`](cloudflare/README.md) for the architecture and staged migration. The current Node.js backend is not directly compatible with Workers. No deployment, paid resource creation, secret configuration or DNS change is authorized until separately approved.
