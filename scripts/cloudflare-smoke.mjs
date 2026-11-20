@@ -6,7 +6,17 @@ const child = spawn(process.execPath, [
   "./node_modules/wrangler/bin/wrangler.js",
   "dev", "--local", "--ip", "127.0.0.1",
   "--port", String(port), "--inspector-port", "0"
-], { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, NO_COLOR: "1" } });
+], {
+  stdio: ["ignore", "pipe", "pipe"],
+  env: {
+    ...process.env,
+    NO_COLOR: "1",
+    // Wrangler requires a local Postgres URL to emulate the Hyperdrive binding.
+    // The smoke test expects the database to be unavailable and verifies fail-closed behavior.
+    CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE:
+      "postgres://lovemet_test:local_only_not_a_real_password@127.0.0.1:5432/lovemet_test"
+  }
+});
 
 let output = "";
 child.stdout.on("data", chunk => { output += chunk.toString(); });
