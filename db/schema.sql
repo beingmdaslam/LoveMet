@@ -1,14 +1,30 @@
 -- LoveMet account foundation. Apply with a PostgreSQL migration runner.
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  phone_e164 TEXT NOT NULL UNIQUE,
+  phone_e164 TEXT UNIQUE,
+  email TEXT,
   display_name TEXT,
   username TEXT UNIQUE,
   avatar_url TEXT,
   phone_verified_at TIMESTAMPTZ,
+  email_verified_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_idx ON users (lower(email)) WHERE email IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS email_otp_challenges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  attempts SMALLINT NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 5),
+  consumed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS email_otp_challenges_email_created_idx ON email_otp_challenges (email, created_at DESC);
+CREATE INDEX IF NOT EXISTS email_otp_challenges_expires_idx ON email_otp_challenges (expires_at);
 
 CREATE TABLE IF NOT EXISTS otp_challenges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -127,11 +143,12 @@ REVOKE ALL PRIVILEGES ON TABLE user_blocks, user_reports FROM anon, authenticate
 -- Do not add public client policies for these private account tables.
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE otp_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE email_otp_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL PRIVILEGES ON TABLE users, otp_challenges, sessions, contact_requests, messages
+REVOKE ALL PRIVILEGES ON TABLE users, otp_challenges, email_otp_challenges, sessions, contact_requests, messages
   FROM anon, authenticated;
 
 
