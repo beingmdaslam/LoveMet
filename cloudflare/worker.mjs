@@ -39,6 +39,11 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/signal") {
+      if (!env.CALL_ROOMS) return unavailable("real-time connection");
+      const id = env.CALL_ROOMS.idFromName("lovemet-call-rooms");
+      return env.CALL_ROOMS.get(id).fetch(request);
+    }
     if (pathname === "/api/calls/invite" || pathname === "/api/calls/respond") {
       try {
         return await withDatabase(env, client => handleCallMutation(request, client, env));
