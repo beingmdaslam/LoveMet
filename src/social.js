@@ -532,7 +532,7 @@ async function handleSocialRequest(req, res, pathname) {
         );
         if (active.rowCount) {
           await client.query("ROLLBACK");
-          json(res, 409, { error: "A call with this contact is already active." });
+          json(res, 409, { error: "You or this contact is already busy with another call." });
           return true;
         }
         const created = await client.query(
