@@ -113,8 +113,8 @@
   async function sendMessage(){const input=$("messageInput"),value=input.value.trim();if(!selected||!value)return;try{await api("/api/messages",{method:"POST",body:JSON.stringify({contactId:selected,message:value})});input.value="";say("chatStatus","Message sent.");await messages();}catch(e){say("chatStatus",e.message);}}
   $("sendMessageBtn").onclick=sendMessage;$("messageInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
   $("refreshAccountBtn").onclick=load;
-  $("logoutBtn").onclick=async()=>{try{await api("/api/auth/logout",{method:"POST",body:"{}"});}catch{}selected=null;closeChatSocket();signed.classList.add("hidden");auth.classList.remove("hidden");say("authStatus","Signed out.");};
-  $("deleteAccountBtn").onclick=async()=>{if(!window.confirm("Permanently delete your LoveMet account, contacts, messages and call history? This cannot be undone."))return;try{await api("/api/account",{method:"DELETE"});selected=null;closeChatSocket();signed.classList.add("hidden");auth.classList.remove("hidden");say("authStatus","Your account and associated data were deleted.");}catch(e){say("profileStatus",e.message);}};
+  $("logoutBtn").onclick=async()=>{try{await api("/api/auth/logout",{method:"POST",body:"{}"});}catch{}selected=null;closeChatSocket();window.dispatchEvent(new Event("lovemet:session-ended"));signed.classList.add("hidden");auth.classList.remove("hidden");say("authStatus","Signed out.");};
+  $("deleteAccountBtn").onclick=async()=>{if(!window.confirm("Permanently delete your LoveMet account, contacts, messages and call history? This cannot be undone."))return;try{await api("/api/account",{method:"DELETE"});selected=null;closeChatSocket();window.dispatchEvent(new Event("lovemet:session-ended"));signed.classList.add("hidden");auth.classList.remove("hidden");say("authStatus","Your account and associated data were deleted.");}catch(e){say("profileStatus",e.message);}};
 
   window.addEventListener("lovemet:call-ended",callHistory);
   load();
