@@ -27,7 +27,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     const ext = path.extname(filePath);
-    const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript" };
+    const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".json": "application/json; charset=utf-8" };
     res.writeHead(200, {
       "Content-Type": types[ext] || "application/octet-stream",
       "X-Content-Type-Options": "nosniff",
