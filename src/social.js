@@ -171,6 +171,25 @@ async function handleSocialRequest(req, res, pathname) {
       return true;
     }
 
+    if (pathname === "/api/calls/history" && req.method === "GET") {
+      const result = await pool.query(
+        `SELECT c.id, c.status, c.created_at, c.started_at, c.ended_at,
+                CASE WHEN c.caller_id = $1 THEN c.callee_id ELSE c.caller_id END AS contact_id,
+                u.username AS contact_username, u.display_name AS contact_display_name,
+                CASE WHEN c.started_at IS NOT NULL AND c.ended_at IS NOT NULL
+                     THEN GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (c.ended_at - c.started_at))))::INTEGER
+                     ELSE NULL END AS duration_seconds,
+                (c.caller_id = $1) AS outgoing
+         FROM call_invites c
+         JOIN users u ON u.id = CASE WHEN c.caller_id = $1 THEN c.callee_id ELSE c.caller_id END
+         WHERE c.caller_id = $1 OR c.callee_id = $1
+         ORDER BY c.created_at DESC LIMIT 30`,
+        [user.id]
+      );
+      json(res, 200, { calls: result.rows });
+      return true;
+    }
+
     if (pathname === "/api/calls/invites" && req.method === "GET") {
       await pool.query(
         `UPDATE call_invites SET status = 'missed', updated_at = NOW()
@@ -201,7 +220,7 @@ async function handleSocialRequest(req, res, pathname) {
         return true;
       }
       await pool.query(
-        `UPDATE call_invites SET status = 'ended', updated_at = NOW()
+        `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
          WHERE status IN ('ringing','accepted') AND expires_at <= NOW()
            AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
         [user.id, contactId]
@@ -246,14 +265,14 @@ async function handleSocialRequest(req, res, pathname) {
       let result;
       if (action === "accept" || action === "decline") {
         result = await pool.query(
-          `UPDATE call_invites SET status = $3, updated_at = NOW(), expires_at = CASE WHEN $3 = 'accepted' THEN NOW() + INTERVAL '4 hours' ELSE expires_at END
+          `UPDATE call_invites SET status = $3, updated_at = NOW(), expires_at = CASE WHEN $3 = 'accepted' THEN NOW() + INTERVAL '4 hours' ELSE expires_at END, started_at = CASE WHEN $3 = 'accepted' THEN NOW() ELSE started_at END, ended_at = CASE WHEN $3 = 'declined' THEN NOW() ELSE ended_at END
            WHERE id = $1 AND callee_id = $2 AND status = 'ringing' AND expires_at > NOW()
            RETURNING id, caller_id, callee_id, status, expires_at`,
           [inviteId, user.id, action === "accept" ? "accepted" : "declined"]
         );
       } else if (action === "cancel") {
         result = await pool.query(
-          `UPDATE call_invites SET status = 'cancelled', updated_at = NOW()
+          `UPDATE call_invites SET status = 'cancelled', updated_at = NOW(), ended_at = NOW()
            WHERE id = $1 AND caller_id = $2 AND status = 'ringing'
            RETURNING id, caller_id, callee_id, status`,
           [inviteId, user.id]
