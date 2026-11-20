@@ -20,7 +20,7 @@ Deployment is intentionally postponed until the application has been implemented
 
 ## Phase 2 — Accounts and profiles
 - [x] Phone OTP request/verification API foundation (PostgreSQL + Twilio adapter; requires deployment environment credentials and live integration test)
-- [x] Persistent opaque sessions, HttpOnly cookie, logout/revocation and basic process-local rate limits (live deployment verification still pending)
+- [x] Persistent opaque sessions, HttpOnly cookie, logout/revocation and shared database-backed OTP rate limits with keyed identifier hashes (live deployment verification still pending)
 - [x] Display name and username editing API + frontend UI (live database integration pending)
 - [ ] Avatar upload and profile image management
 - [x] Block/unblock controls and report submission API/UI
@@ -59,7 +59,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Basic block controls, categorized reports, and database-backed report limits
 - [ ] Full threat model and staffed report-moderation workflow
 - [ ] Authentication and authorization integration tests
-- [x] Secure signaling origin/session/accepted-invite checks and input validation
+- [x] Secure signaling origin/session/accepted-invite checks, same-origin mutation protection and input validation
 - [x] Authenticated account deletion with cascading removal of contacts, messages, sessions, call history, and OTP challenges
 - [ ] Formal retention schedule and deletion-request policy
 - [x] Draft privacy notice and terms pages (operator/legal review and contact details required before launch)
@@ -74,6 +74,7 @@ Deployment is intentionally postponed until the application has been implemented
 
 ## Database status
 - [x] Supabase PostgreSQL project connected and active
+- [x] Shared OTP rate-limit table created with RLS enabled and client-role privileges revoked
 - [x] Core tables created and verified: users, otp_challenges, sessions, contact_requests, messages, call_invites, user_blocks, user_reports
 - [x] RLS enabled on all eight tables; no client policies granted (server-side API owns access)
 - [ ] Backend hosting DATABASE_URL and OTP_HASH_SECRET configuration
