@@ -108,3 +108,34 @@ test('email OTP rejects invalid email addresses before database access', async (
  assert.equal(response.status, 400);
  assert.equal(db.calls.length, 0);
 });
+
+test('email OTP delivery failure rolls back the challenge transaction', async () => {
+ const db = baseDb();
+ const env = { OTP_HASH_SECRET: secret, RESEND_API_KEY: 're_test_key', RESEND_FROM_EMAIL: 'LoveMet <login@example.com>' };
+ const response = await handleOtpAndLogout(req('/api/auth/request-email-otp', { email: 'person@example.com' }), db, env, async () => new Response('rejected', { status: 403 }));
+ assert.equal(response.status, 502);
+ assert.ok(db.calls.some(call => call.sql.includes('INSERT INTO email_otp_challenges')));
+ assert.ok(db.calls.some(call => call.sql === 'ROLLBACK'));
+});
+
+test('email OTP verification locks a challenge after five incorrect codes', async () => {
+ const email = 'person@example.com'; const salt = randomBytes(16); const digest = await scrypt(email + ':123456:' + secret, salt, 64); const stored = salt.toString('hex') + ':' + digest.toString('hex');
+ const db = baseDb(); let attempts = 0;
+ db.query = async (sql, args) => {
+  db.calls.push({ sql, args });
+  if (sql.includes('INSERT INTO api_rate_limits')) return { rowCount: 1, rows: [{ hit_count: 1 }] };
+  if (sql.includes('FROM email_otp_challenges')) return { rowCount: 1, rows: [{ id: 'email-lockout', code_hash: stored, attempts }] };
+  if (sql.includes('SET attempts = attempts + 1')) { attempts += 1; return { rowCount: 1, rows: [] }; }
+  return { rowCount: 1, rows: [] };
+ };
+ for (let i = 0; i < 5; i += 1) {
+  const response = await handleOtpAndLogout(req('/api/auth/verify-email-otp', { email, code: '654321' }), db, { OTP_HASH_SECRET: secret });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'Code is invalid or expired.');
+ }
+ assert.equal(attempts, 5);
+ const sixth = await handleOtpAndLogout(req('/api/auth/verify-email-otp', { email, code: '654321' }), db, { OTP_HASH_SECRET: secret });
+ assert.equal(sixth.status, 400);
+ assert.equal((await sixth.json()).error, 'Code is invalid or expired. Request a new one.');
+ assert.equal(attempts, 5);
+});
