@@ -13,5 +13,21 @@
       "/chat",
       "/signal"
     ]
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CALL_ROOMS",
+        "class_name": "CallRooms"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "CallRooms"
+      ]
+    }
+  ]
 }
