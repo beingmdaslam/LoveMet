@@ -228,7 +228,7 @@ async function handleSocialRequest(req, res, pathname) {
       let result;
       if (action === "accept" || action === "decline") {
         result = await pool.query(
-          `UPDATE call_invites SET status = $3, updated_at = NOW()
+          `UPDATE call_invites SET status = $3, updated_at = NOW(), expires_at = CASE WHEN $3 = 'accepted' THEN NOW() + INTERVAL '4 hours' ELSE expires_at END
            WHERE id = $1 AND callee_id = $2 AND status = 'ringing' AND expires_at > NOW()
            RETURNING id, caller_id, callee_id, status, expires_at`,
           [inviteId, user.id, action === "accept" ? "accepted" : "declined"]
