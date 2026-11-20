@@ -30,11 +30,11 @@
   <section class="panel" style="margin-bottom:16px">
     <h2 style="margin:0 0 14px">Your LoveMet account</h2>
     <div id="authArea" class="subpanel">
-      <p class="hint">Sign in using free-tier email OTP, or choose phone SMS if available.</p>
+      <p class="hint">Sign in with email OTP or phone SMS.</p>
       <div class="rowActions"><button class="secondary" id="emailModeBtn" type="button">Email OTP</button><button class="secondary" id="phoneModeBtn" type="button">Phone SMS</button></div>
       <div id="emailAuthArea">
         <label for="email">Email address</label><input class="field" id="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com">
-        <div class="rowActions"><button id="sendEmailOtpBtn" type="button">Send free email code</button></div>
+        <div class="rowActions"><button id="sendEmailOtpBtn" type="button">Send email code</button></div>
         <div id="emailOtpArea" class="hidden"><label for="emailOtp">6-digit verification code</label><input class="field" id="emailOtp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Enter code"><button id="verifyEmailOtpBtn" type="button">Verify and sign in</button></div>
       </div>
       <div id="phoneAuthArea" class="hidden">
@@ -42,7 +42,7 @@
         <div class="rowActions"><button id="sendOtpBtn" type="button">Send SMS code</button></div>
         <div id="otpArea" class="hidden"><label for="otp">6-digit verification code</label><input class="field" id="otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Enter code"><button id="verifyOtpBtn" type="button">Verify and sign in</button></div>
       </div>
-      <p class="hint" id="authStatus" role="status">Email OTP requires a verified sender and free-tier email provider setup.</p>
+      <p class="hint" id="authStatus" role="status">Email OTP needs a configured email provider and verified sender. SMS may incur charges.</p>
     </div>
     <div id="signedInArea" class="hidden">
       <div class="accountGrid">
