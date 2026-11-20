@@ -10,6 +10,7 @@ import { handleModeration } from "./moderation.mjs";
 import { handleOtpAndLogout } from "./otp.mjs";
 import { handleAccountDelete } from "./account.mjs";
 import { handleCallMutation } from "./call-mutations.mjs";
+import { publishUserEvent } from "./user-events.mjs";
 export { CallRooms } from "./call-rooms.mjs";
 export { UserEvents } from "./user-events.mjs";
 
@@ -82,7 +83,18 @@ export default {
     }
     if (pathname === "/api/calls/invite" || pathname === "/api/calls/respond") {
       try {
-        return await withDatabase(env, client => handleCallMutation(request, client, env));
+        const response = await withDatabase(env, client => handleCallMutation(request, client, env));
+        if (response.ok) {
+          const payload = await response.clone().json().catch(() => null);
+          const invite = payload?.invite;
+          if (invite?.caller_id && invite?.callee_id) {
+            await Promise.all([
+              publishUserEvent(env, invite.caller_id, { type: "call-update" }),
+              publishUserEvent(env, invite.callee_id, { type: "call-update" })
+            ]);
+          }
+        }
+        return response;
       } catch {
         return unavailable("API");
       }
