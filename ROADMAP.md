@@ -75,7 +75,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Add database-backed Worker readiness check and Fetch-native `/api/auth/request-otp`, `/api/auth/verify-otp`, `/api/auth/logout`, `/api/auth/me`, `/api/account`, `/api/profile`, `/api/contacts`, `/api/contacts/requests`, `/api/contacts/blocks`, `/api/users/search`, `/api/messages`, `/api/calls/config`, `/api/calls/history`, `/api/contacts/request` and `/api/contacts/respond`, `/api/contacts/block`, `/api/contacts/unblock` and `/api/users/report` handlers with session checks, same-origin protection, bounded JSON bodies and username conflict handling
 - [ ] Refactor remaining authentication and social APIs to Fetch-native request handlers
 - [ ] Configure a real Hyperdrive binding to the Supabase database and verify PostgreSQL transactions in the Workers runtime
-- [x] Add SQLite-backed hibernatable Durable Object call signaling with session/invite/block checks on each packet and every 60 seconds, two-participant cap, reconnect grace and bounded messages
+- [x] Add SQLite-backed hibernatable Durable Object call signaling with session/invite/block checks on each packet and every 60 seconds, serialized two-participant admission, reconnect grace and bounded messages
 - [x] Add per-user hibernatable chat event Durable Objects with session revalidation, five-socket cap and receive-only clients
 - [x] Publish new messages and read receipts to recipient event rooms after database commit (HTTP polling remains fallback)
 - [x] Broadcast call state changes to both users after invite/accept/decline/cancel/end, logout and account deletion
