@@ -11,6 +11,7 @@ import { handleOtpAndLogout } from "./otp.mjs";
 import { handleAccountDelete } from "./account.mjs";
 import { handleCallMutation } from "./call-mutations.mjs";
 export { CallRooms } from "./call-rooms.mjs";
+export { UserEvents } from "./user-events.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -22,6 +23,19 @@ const JSON_HEADERS = {
   "Cross-Origin-Resource-Policy": "same-origin",
   "X-Permitted-Cross-Domain-Policies": "none"
 };
+
+function cookieToken(request) {
+  for (const part of String(request.headers.get("cookie") || "").split(";")) {
+    const index = part.indexOf("=");
+    if (index < 0 || part.slice(0, index).trim() !== "lovemet_session") continue;
+    try { return decodeURIComponent(part.slice(index + 1).trim()); } catch { return ""; }
+  }
+  return "";
+}
+async function tokenHash(token) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, "0")).join("");
+}
 
 function unavailable(service) {
   return new Response(JSON.stringify({
@@ -40,6 +54,25 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/chat") {
+      if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+        return new Response("WebSocket upgrade required.", { status: 426, headers: JSON_HEADERS });
+      }
+      if (!env.USER_EVENTS) return unavailable("real-time connection");
+      const token = cookieToken(request);
+      if (!token || token.length > 200) return new Response("Sign in required.", { status: 401, headers: JSON_HEADERS });
+      const hash = await tokenHash(token);
+      try {
+        const session = await withDatabase(env, client => client.query(
+          "SELECT u.id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1",
+          [hash]
+        ));
+        if (!session.rowCount) return new Response("Sign in required.", { status: 401, headers: JSON_HEADERS });
+        return env.USER_EVENTS.get(env.USER_EVENTS.idFromName(session.rows[0].id)).fetch(request);
+      } catch {
+        return unavailable("real-time connection");
+      }
+    }
     if (pathname === "/signal") {
       const roomId = url.searchParams.get("roomId") || "";
       if (!/^[0-9a-f-]{36}$/i.test(roomId)) return new Response("A valid call invitation is required.", { status: 400 });
