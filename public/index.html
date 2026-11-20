@@ -104,7 +104,7 @@
   const roomInput = $("room"), status = $("status"), joinBtn = $("joinBtn");
   const localVideo = $("localVideo"), remoteVideo = $("remoteVideo");
   const micBtn = $("micBtn"), cameraBtn = $("cameraBtn"), leaveBtn = $("leaveBtn");
-  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true;
+  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true, activeCallInvite = null;
 
   function say(message) { status.textContent = message; }
   function send(type, data) {
@@ -122,7 +122,7 @@
   }
   async function startCall(roomId) {
     if (!/^[0-9a-f-]{36}$/i.test(roomId||"")) { say("Accept a valid call invitation first."); return; }
-    roomInput.value=roomId;
+    roomInput.value=roomId; activeCallInvite=roomId;
     joinBtn.disabled = true;
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
@@ -152,8 +152,8 @@
             await peer.setRemoteDescription(msg.data);
           } else if (msg.type === "ice" && msg.data) {
             await peer.addIceCandidate(msg.data);
-          } else if (msg.type === "peer-left") {
-            remoteVideo.srcObject = null; say("The other person left the call.");
+          } else if (msg.type === "hangup" || msg.type === "peer-left") {
+            say(msg.type === "hangup" ? "The other person ended the call." : "The other person left the call."); cleanup(false);
           } else if (msg.type === "error") {
             say(msg.message); cleanup(false);
           }
@@ -168,6 +168,7 @@
   }
   function cleanup(notify = true) {
     if (notify) send("hangup");
+    if (activeCallInvite) { const inviteId=activeCallInvite; activeCallInvite=null; fetch("/api/calls/respond",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({inviteId,action:"end"})}).catch(()=>{}); }
     if (socket) { socket.close(); socket = null; }
     if (peer) { peer.close(); peer = null; }
     if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
