@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS call_invites (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '60 seconds'),
+  started_at TIMESTAMPTZ,
+  ended_at TIMESTAMPTZ,
   CHECK (caller_id <> callee_id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS call_invites_one_active_pair_idx
