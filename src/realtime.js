@@ -15,6 +15,15 @@ function addClient(userId, socket) {
   });
 }
 
+function publishReadReceipt(senderId, recipientId, messageIds, readAt) {
+  const sockets = clients.get(senderId);
+  if (!sockets || !messageIds.length) return;
+  const payload = JSON.stringify({ type: "read", contactId: recipientId, messageIds, readAt });
+  for (const socket of sockets) {
+    if (socket.readyState === WebSocket.OPEN) socket.send(payload);
+  }
+}
+
 function publishMessage(message) {
   const payload = JSON.stringify({ type: "message", message });
   for (const userId of [message.sender_id, message.recipient_id]) {
@@ -26,4 +35,4 @@ function publishMessage(message) {
   }
 }
 
-module.exports = { addClient, publishMessage };
+module.exports = { addClient, publishMessage, publishReadReceipt };
