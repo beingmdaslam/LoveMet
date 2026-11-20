@@ -146,3 +146,29 @@ test("Cloudflare Worker overwrites unsafe static asset headers but preserves con
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
 });
+
+test("every API endpoint used by the frontend is explicitly routed by the Cloudflare Worker", () => {
+  const html = fs.readFileSync(new URL("../public/index.html", "file://" + __filename), "utf8");
+  const workerSource = fs.readFileSync(new URL("../cloudflare/worker.mjs", "file://" + __filename), "utf8");
+  const frontendRoutes = [...new Set(html.match(/\/api\/[a-zA-Z0-9_/-]+/g) || [])].sort();
+  assert.ok(frontendRoutes.length >= 20, "expected to discover the frontend API surface");
+  const missing = frontendRoutes.filter(route =>
+    !workerSource.includes(JSON.stringify(route)) &&
+    !workerSource.includes("'" + route + "'")
+  );
+  assert.deepEqual(missing, [], "frontend API routes missing from Worker routing");
+});
+
+test("Wrangler static asset configuration exposes the PWA shell through Worker security middleware", () => {
+  const config = JSON.parse(fs.readFileSync(new URL("../wrangler.jsonc", "file://" + __filename), "utf8"));
+  const html = fs.readFileSync(new URL("../public/index.html", "file://" + __filename), "utf8");
+  const manifest = JSON.parse(fs.readFileSync(new URL("../public/manifest.webmanifest", "file://" + __filename), "utf8"));
+  const serviceWorker = fs.readFileSync(new URL("../public/sw.js", "file://" + __filename), "utf8");
+  assert.equal(config.assets.run_worker_first, true);
+  assert.match(html, /rel=["']manifest["'][^>]*href=["']\/manifest\.webmanifest["']/);
+  assert.equal(manifest.start_url, "/");
+  assert.equal(manifest.scope, "/");
+  assert.match(serviceWorker, /\/manifest\.webmanifest/);
+  assert.match(serviceWorker, /\/lovemet-icon\.svg/);
+  assert.match(serviceWorker, /url\.pathname\.startsWith\(["']\/api\/["']\)/);
+});
