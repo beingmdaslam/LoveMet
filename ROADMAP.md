@@ -49,9 +49,10 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Battery, network and permission testing on real Android devices
 
 ## Phase 6 — Security, privacy and quality
-- [ ] Threat model and abuse prevention
-- [ ] Authentication and authorization tests
-- [ ] Secure signaling and input validation
+- [x] Basic block controls, categorized reports, and database-backed report limits
+- [ ] Full threat model and staffed report-moderation workflow
+- [ ] Authentication and authorization integration tests
+- [x] Secure signaling origin/session/accepted-invite checks and input validation
 - [x] Authenticated account deletion with cascading removal of contacts, messages, sessions, call history, and OTP challenges
 - [ ] Formal retention schedule and deletion-request policy
 - [x] Draft privacy notice and terms pages (operator/legal review and contact details required before launch)
