@@ -4,6 +4,7 @@ const path = require("path");
 const WebSocket = require("ws");
 const { handleAuthRequest, pool } = require("./src/auth");
 const { handleSocialRequest, getUser } = require("./src/social");
+const { addClient } = require("./src/realtime");
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -37,6 +38,26 @@ const server = http.createServer(async (req, res) => {
     });
     res.end(data);
   });
+});
+
+const chatWss = new WebSocket.Server({ server, path: "/chat", maxPayload: 1024, perMessageDeflate: false });
+
+chatWss.on("connection", async (ws, req) => {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
+  let originAllowed = false;
+  try {
+    const origin = new URL(req.headers.origin || "");
+    originAllowed = origin.host === req.headers.host && origin.protocol === (forwardedProto === "https" ? "https:" : "http:");
+  } catch {}
+  if (!originAllowed) { ws.close(1008, "Invalid chat origin"); return; }
+  try {
+    const user = await getUser(req);
+    if (!user) { ws.close(1008, "Sign in required"); return; }
+    addClient(user.id, ws);
+    ws.on("message", () => ws.close(1008, "Chat socket is receive-only"));
+  } catch {
+    ws.close(1011, "Chat authentication unavailable");
+  }
 });
 
 const wss = new WebSocket.Server({ server, path: "/signal", maxPayload: 64 * 1024 });
