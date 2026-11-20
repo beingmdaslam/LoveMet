@@ -127,7 +127,7 @@
   const roomInput = $("room"), status = $("status"), joinBtn = $("joinBtn");
   const localVideo = $("localVideo"), remoteVideo = $("remoteVideo");
   const micBtn = $("micBtn"), cameraBtn = $("cameraBtn"), switchCameraBtn = $("switchCameraBtn"), leaveBtn = $("leaveBtn"), callTimer = $("callTimer");
-  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true, cameraFacing = "user", activeCallInvite = null, statusTimer = null, timerInterval = null, callStartedAt = null;
+  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true, cameraFacing = "user", activeCallInvite = null, statusTimer = null, timerInterval = null, callStartedAt = null, callReconnectTimer = null, callReconnectDeadline = null;
 
   function say(message) { status.textContent = message; }
   function send(type, data) {
@@ -143,6 +143,112 @@
       if (peer && ["failed", "disconnected"].includes(peer.connectionState)) say("Connection interrupted. Check your network.");
     };
   }
+  function connectSignal(roomId) {
+    if (!activeCallInvite || (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState))) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const nextSocket = new WebSocket(protocol + "//" + location.host + "/signal");
+    socket = nextSocket;
+    nextSocket.onopen = () => {
+      if (socket === nextSocket && activeCallInvite) nextSocket.send(JSON.stringify({ type: "join", roomId }));
+    };
+    nextSocket.onmessage = async event => {
+      if (socket !== nextSocket) return;
+      const msg = JSON.parse(event.data);
+      try {
+        if (msg.type === "joined") {
+          const firstJoin = !joined;
+          joined = true;
+          isInitiator = !!msg.isInitiator;
+          roomInput.value = msg.roomId;
+          roomInput.disabled = true;
+          callReconnectDeadline = null;
+          say(msg.reconnected ? "Connection restored. Rejoining the call…" : "Secure invitation accepted. Connecting to your contact…");
+          leaveBtn.disabled = micBtn.disabled = cameraBtn.disabled = switchCameraBtn.disabled = false;
+          if (firstJoin && !callStartedAt) {
+            callStartedAt = Date.now();
+            if (timerInterval) window.clearInterval(timerInterval);
+            timerInterval = window.setInterval(() => {
+              const elapsed = Math.floor((Date.now() - callStartedAt) / 1000);
+              callTimer.textContent = String(Math.floor(elapsed / 60)).padStart(2, "0") + ":" + String(elapsed % 60).padStart(2, "0");
+            }, 1000);
+          }
+          if (firstJoin && statusTimer) window.clearInterval(statusTimer);
+          if (firstJoin) statusTimer = window.setInterval(async () => {
+            try {
+              const response = await fetch("/api/calls/status?inviteId=" + encodeURIComponent(roomId), { credentials: "same-origin", cache: "no-store" });
+              if (response.status === 401 || response.status === 404) { say("Call authorization ended."); cleanup(false); return; }
+              if (!response.ok) return;
+              const state = await response.json();
+              if (state.status !== "accepted") { say("Call ended."); cleanup(false); }
+            } catch {}
+          }, 5000);
+        } else if (msg.type === "peer-joined") {
+          say("The other person joined. Connecting…");
+          if (isInitiator && peer && peer.signalingState === "stable") {
+            const offer = await peer.createOffer();
+            await peer.setLocalDescription(offer);
+            send("offer", offer);
+          }
+        } else if (msg.type === "peer-disconnected") {
+          say("Your contact’s connection was interrupted. Waiting for reconnection…");
+        } else if (msg.type === "peer-rejoined") {
+          say("Your contact reconnected. Restoring the call…");
+          if (isInitiator && peer && peer.signalingState === "stable") {
+            peer.restartIce();
+            const offer = await peer.createOffer({ iceRestart: true });
+            await peer.setLocalDescription(offer);
+            send("offer", offer);
+          }
+        } else if (msg.type === "offer") {
+          await peer.setRemoteDescription(msg.data);
+          const answer = await peer.createAnswer();
+          await peer.setLocalDescription(answer);
+          send("answer", answer);
+        } else if (msg.type === "answer") {
+          await peer.setRemoteDescription(msg.data);
+        } else if (msg.type === "ice" && msg.data) {
+          await peer.addIceCandidate(msg.data);
+        } else if (msg.type === "hangup" || msg.type === "peer-left") {
+          say(msg.type === "hangup" ? "The other person ended the call." : "The other person left the call.");
+          cleanup(false);
+        } else if (msg.type === "error") {
+          say(msg.message);
+          cleanup(false);
+        }
+      } catch (error) {
+        say("Call setup error: " + error.message);
+      }
+    };
+    nextSocket.onerror = () => {
+      if (socket === nextSocket) say("Signaling connection interrupted. Reconnecting…");
+    };
+    nextSocket.onclose = event => {
+      if (socket !== nextSocket) return;
+      socket = null;
+      if (activeCallInvite && event.code !== 1008) {
+        if (!callReconnectDeadline) callReconnectDeadline = Date.now() + 22000;
+        if (Date.now() < callReconnectDeadline) {
+          say("Network interrupted. LoveMet is trying to restore your call…");
+          if (!callReconnectTimer) callReconnectTimer = window.setTimeout(() => {
+            callReconnectTimer = null;
+            connectSignal(roomId);
+          }, 1200);
+          return;
+        }
+      }
+      const wasJoined = joined;
+      cleanup(false);
+      if (wasJoined) say("Call connection could not be restored. You can start another call.");
+    };
+  }
+
+  window.addEventListener("online", () => {
+    if (activeCallInvite && (!socket || socket.readyState === WebSocket.CLOSED)) connectSignal(activeCallInvite);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && activeCallInvite && (!socket || socket.readyState === WebSocket.CLOSED)) connectSignal(activeCallInvite);
+  });
+
   async function startCall(roomId) {
     if (!/^[0-9a-f-]{36}$/i.test(roomId||"")) { say("Accept a valid call invitation first."); return; }
     roomInput.value=roomId; activeCallInvite=roomId;
@@ -154,52 +260,7 @@
       if (!configResponse.ok) throw new Error("Could not load secure call network settings.");
       const callConfig = await configResponse.json();
       makePeer(callConfig.iceServers);
-      const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-      socket = new WebSocket(protocol + "//" + location.host + "/signal");
-      socket.onopen = () => socket.send(JSON.stringify({ type: "join", roomId }));
-      socket.onmessage = async event => {
-        const msg = JSON.parse(event.data);
-        try {
-          if (msg.type === "joined") {
-            joined = true; isInitiator = !!msg.isInitiator; roomInput.value = msg.roomId; roomInput.disabled = true;
-            say("Secure invitation accepted. Connecting to your contact…");
-            leaveBtn.disabled = micBtn.disabled = cameraBtn.disabled = switchCameraBtn.disabled = false;
-            callStartedAt = Date.now();
-            if (timerInterval) window.clearInterval(timerInterval);
-            timerInterval = window.setInterval(() => { const elapsed=Math.floor((Date.now()-callStartedAt)/1000); callTimer.textContent=String(Math.floor(elapsed/60)).padStart(2,"0")+":"+String(elapsed%60).padStart(2,"0"); },1000);
-            if (statusTimer) window.clearInterval(statusTimer);
-            statusTimer = window.setInterval(async () => {
-              try {
-                const response = await fetch("/api/calls/status?inviteId=" + encodeURIComponent(roomId), { credentials: "same-origin", cache: "no-store" });
-                if (response.status === 401 || response.status === 404) { say("Call authorization ended."); cleanup(false); return; }
-                if (!response.ok) return;
-                const state = await response.json();
-                if (state.status !== "accepted") { say("Call ended."); cleanup(false); }
-              } catch {}
-            }, 5000);
-          } else if (msg.type === "peer-joined") {
-            say("The other person joined. Connecting…");
-            if (isInitiator && peer.signalingState === "stable") {
-              const offer = await peer.createOffer();
-              await peer.setLocalDescription(offer); send("offer", offer);
-            }
-          } else if (msg.type === "offer") {
-            await peer.setRemoteDescription(msg.data);
-            const answer = await peer.createAnswer();
-            await peer.setLocalDescription(answer); send("answer", answer);
-          } else if (msg.type === "answer") {
-            await peer.setRemoteDescription(msg.data);
-          } else if (msg.type === "ice" && msg.data) {
-            await peer.addIceCandidate(msg.data);
-          } else if (msg.type === "hangup" || msg.type === "peer-left") {
-            say(msg.type === "hangup" ? "The other person ended the call." : "The other person left the call."); cleanup(false);
-          } else if (msg.type === "error") {
-            say(msg.message); cleanup(false);
-          }
-        } catch (error) { say("Call setup error: " + error.message); }
-      };
-      socket.onerror = () => say("Signaling connection failed. Check the server and try again.");
-      socket.onclose = () => { const wasJoined = joined; cleanup(false); if (wasJoined) say("Call connection closed. You can start another call."); };
+      connectSignal(roomId);
     } catch (error) {
       say(error.name === "NotAllowedError" ? "Camera/microphone permission was denied." : "Could not start camera: " + error.message);
       cleanup(false);
@@ -207,6 +268,8 @@
   }
   function cleanup(notify = true) {
     if (statusTimer) { window.clearInterval(statusTimer); statusTimer = null; }
+    if (callReconnectTimer) { window.clearTimeout(callReconnectTimer); callReconnectTimer = null; }
+    callReconnectDeadline = null;
     if (notify) send("hangup");
     if (activeCallInvite) { const inviteId=activeCallInvite; activeCallInvite=null; fetch("/api/calls/respond",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({inviteId,action:"end"})}).catch(()=>{}).finally(()=>window.dispatchEvent(new Event("lovemet:call-ended"))); }
     if (socket) { socket.close(); socket = null; }
