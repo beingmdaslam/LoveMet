@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS otp_challenges (
 );
 CREATE INDEX IF NOT EXISTS otp_challenges_phone_created_idx
   ON otp_challenges (phone_e164, created_at DESC);
+CREATE INDEX IF NOT EXISTS otp_challenges_expires_idx ON otp_challenges (expires_at);
 
 CREATE TABLE IF NOT EXISTS sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -31,6 +32,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
+CREATE INDEX IF NOT EXISTS sessions_expires_idx ON sessions (expires_at);
 
 
 -- Contact requests are directional until accepted by the recipient.
