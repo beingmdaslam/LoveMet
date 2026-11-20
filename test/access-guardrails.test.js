@@ -111,6 +111,9 @@ test("live chat WebSocket authenticates sessions and checks same-origin connecti
   assert.match(server, /const user = await getUser\(req\)/);
   assert.match(server, /addClient\(user\.id, ws\)/);
   assert.match(server, /Chat socket is receive-only/);
+  assert.match(server, /setInterval\(async \(\) =>/);
+  assert.match(server, /Session expired/);
+  assert.match(server, /Too many chat connections/);
 });
 
 test("new chat messages are broadcast only to the two participants", () => {
@@ -120,4 +123,11 @@ test("new chat messages are broadcast only to the two participants", () => {
   assert.match(social, /publishMessage\(result\.rows\[0\]\)/);
   assert.match(realtime, /\[message\.sender_id, message\.recipient_id\]/);
   assert.match(realtime, /type: "message"/);
+});
+
+
+test("live chat socket count is capped per account", () => {
+  const realtime = fs.readFileSync(path.join(root, "src/realtime.js"), "utf8");
+  assert.match(realtime, /sockets\.size >= 5/);
+  assert.match(realtime, /return false/);
 });
