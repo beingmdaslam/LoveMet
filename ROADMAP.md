@@ -27,7 +27,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Frontend incoming-request accept/decline UI (live integration pending)
 - [x] Backend one-to-one text-message send/read API
 - [x] Basic frontend one-to-one chat UI (live integration pending)
-- [ ] Real-time message delivery, read-receipt updates and message polling
+- [x] Basic 4-second chat polling and read-receipt timestamps (push delivery still pending)
 - [ ] Safe handling of attachments (if enabled)
 
 ## Phase 4 — Call management
