@@ -6,13 +6,13 @@ const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Cont
 const MAX_BODY_BYTES = 8192; const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 function json(status, body, extra = {}) { return new Response(JSON.stringify(body), { status, headers: { ...HEADERS, ...extra } }); }
 function sameOrigin(request) { try { const origin = request.headers.get('origin'); return Boolean(origin) && new URL(origin).origin === new URL(request.url).origin; } catch { return false; } }
-function normalizePhone(value) { const phone = String(value || '').replace(/[\\s()-]/g, ''); if (!/^\\+[1-9]\\d{7,14}$/.test(phone)) throw Object.assign(new Error('Phone number must use international E.164 format.'), { status: 400 }); return phone; }
+function normalizePhone(value) { const phone = String(value || '').replace(/[\s()-]/g, ''); if (!/^\+[1-9]\d{7,14}$/.test(phone)) throw Object.assign(new Error('Phone number must use international E.164 format.'), { status: 400 }); return phone; }
 function hashSession(token) { return createHash('sha256').update(String(token)).digest('hex'); }
 function readCookie(request, name) { for (const part of String(request.headers.get('cookie') || '').split(';')) { const i = part.indexOf('='); if (i < 0 || part.slice(0, i).trim() !== name) continue; try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return ''; } } return ''; }
 async function readJson(request) { const reader = request.body?.getReader(); if (!reader) return {}; const chunks = []; let size = 0; try { while (true) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength; if (size > MAX_BODY_BYTES) { await reader.cancel(); throw Object.assign(new Error('Request too large.'), { status: 413 }); } chunks.push(value); } } finally { reader.releaseLock(); } try { const raw = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { raw.set(chunk, offset); offset += chunk.byteLength; } const body = JSON.parse(new TextDecoder().decode(raw) || '{}'); if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(); return body; } catch { throw Object.assign(new Error('Invalid JSON body.'), { status: 400 }); } }
 function assertSecret(secret) { if (typeof secret !== 'string' || secret.length < 32) throw new Error('OTP_HASH_SECRET must contain at least 32 characters.'); }
 async function hashOtp(phone, code, secret) { assertSecret(secret); const salt = randomBytes(16); const derived = await scrypt(phone + ':' + code + ':' + secret, salt, 64); return salt.toString('hex') + ':' + derived.toString('hex'); }
-async function verifyOtp(phone, code, stored, secret) { if (!/^\\d{6}$/.test(code) || typeof stored !== 'string') return false; const parts = stored.split(':'); if (parts.length !== 2 || !/^[a-f0-9]{32}$/i.test(parts[0]) || !/^[a-f0-9]{128}$/i.test(parts[1])) return false; const actual = await scrypt(phone + ':' + code + ':' + secret, Buffer.from(parts[0], 'hex'), 64); return timingSafeEqual(actual, Buffer.from(parts[1], 'hex')); }
+async function verifyOtp(phone, code, stored, secret) { if (!/^\d{6}$/.test(code) || typeof stored !== 'string') return false; const parts = stored.split(':'); if (parts.length !== 2 || !/^[a-f0-9]{32}$/i.test(parts[0]) || !/^[a-f0-9]{128}$/i.test(parts[1])) return false; const actual = await scrypt(phone + ':' + code + ':' + secret, Buffer.from(parts[0], 'hex'), 64); return timingSafeEqual(actual, Buffer.from(parts[1], 'hex')); }
 async function sendSms(phone, code, env, fetcher) {
  const sid = env?.TWILIO_ACCOUNT_SID; const auth = env?.TWILIO_AUTH_TOKEN; const from = env?.TWILIO_FROM_NUMBER;
  if (!sid || !auth || !from) throw new Error('SMS provider is not configured.');
@@ -45,7 +45,7 @@ export async function handleOtpAndLogout(request, client, env, fetcher = fetch) 
   }
   if (pathname === '/api/auth/verify-otp') {
    const body = await readJson(request); const phone = normalizePhone(body.phone); assertSecret(env?.OTP_HASH_SECRET); const code = String(body.code || '');
-   if (!/^\\d{6}$/.test(code)) return json(400, { error: 'Enter the six-digit verification code.' });
+   if (!/^\d{6}$/.test(code)) return json(400, { error: 'Enter the six-digit verification code.' });
    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
    if (!(await allowRequest(client, env.OTP_HASH_SECRET, 'verify-ip:' + ip, 20, 900000)) || !(await allowRequest(client, env.OTP_HASH_SECRET, 'verify-phone:' + phone, 8, 900000))) return json(429, { error: 'Too many attempts. Request a new code later.' });
    await client.query('BEGIN');
