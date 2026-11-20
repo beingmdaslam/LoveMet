@@ -53,6 +53,21 @@ export async function isSchemaReady(client) {
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'users'
           AND column_name = 'phone_e164' AND is_nullable = 'YES'
+      )
+      AND EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename = 'users'
+          AND indexname = 'users_email_unique_idx'
+      )
+      AND EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename = 'users'
+          AND indexdef ILIKE 'CREATE UNIQUE INDEX%phone_e164%'
+      )
+      AND EXISTS (
+        SELECT 1 FROM pg_class
+        WHERE oid = to_regclass('public.email_otp_challenges')
+          AND relrowsecurity = TRUE
       ) AS ready
   `);
   return result.rows?.[0]?.ready === true;
