@@ -40,3 +40,17 @@ test("withDatabase rejects a missing Hyperdrive binding without opening a connec
   await assert.rejects(withDatabase({}, async () => {}, FakeClient), /Hyperdrive binding is not configured/);
   assert.equal(constructed, false);
 });
+
+test("withDatabase does not call end when connect itself fails", async () => {
+  let ended = false;
+  class FakeClient {
+    async connect() { throw new Error("connect failed"); }
+    async end() { ended = true; }
+  }
+  await assert.rejects(
+    withDatabase({ HYPERDRIVE: { connectionString: "postgres://test.invalid/db" } },
+      async () => {}, FakeClient),
+    /connect failed/
+  );
+  assert.equal(ended, false);
+});
