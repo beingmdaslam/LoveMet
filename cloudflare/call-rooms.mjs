@@ -6,7 +6,7 @@ function cookieToken(request) { for (const part of String(request.headers.get('c
 async function tokenHash(token) { const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)); return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join(''); }
 function send(ws, value) { try { if (ws.readyState === 1) ws.send(JSON.stringify(value)); } catch {} }
 export class CallRooms {
- constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+ constructor(ctx, env, database = withDatabase) { this.ctx = ctx; this.env = env; this.database = database; }
  async fetch(request) {
   if (request.method !== 'GET' || request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return new Response('WebSocket upgrade required.', { status: 426, headers: { 'Cache-Control': 'no-store' } });
   const origin = request.headers.get('Origin');
@@ -15,9 +15,14 @@ export class CallRooms {
   const token = cookieToken(request); if (!token || token.length > 200) return new Response('Sign in required.', { status: 401 });
   const hash = await tokenHash(token);
   let session;
-  try { session = await withDatabase(this.env, client => client.query('SELECT u.id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash])); }
+  try { session = await this.database(this.env, client => client.query('SELECT u.id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash])); }
   catch { return new Response('Signaling service unavailable.', { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' } }); }
   if (!session.rowCount) return new Response('Sign in required.', { status: 401 });
+  // Authorize the session as a participant of this accepted call before allocating a socket.
+  let callPermission;
+  try { callPermission = await this.authorize({ tokenHash: hash, userId: session.rows[0].id }, expectedRoomId); }
+  catch { return new Response('Signaling service unavailable.', { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' } }); }
+  if (!callPermission.rowCount) return new Response('Call invitation is not authorized.', { status: 403, headers: { 'Cache-Control': 'no-store' } });
   // Reject duplicate live sockets before upgrade, including sockets that have not sent join yet.
   // This prevents pre-join connection floods from bypassing the two-participant room limit.
   const alreadyConnected = this.ctx.getWebSockets().some(ws => ws.readyState === 1 && ws.deserializeAttachment()?.userId === session.rows[0].id);
@@ -29,7 +34,7 @@ export class CallRooms {
   return new Response(null, { status: 101, webSocket: client });
  }
  async authorize(attachment, roomId) {
-  return withDatabase(this.env, client => client.query("SELECT c.caller_id, c.callee_id FROM sessions s JOIN users u ON u.id = s.user_id JOIN call_invites c ON c.id = $2 WHERE s.token_hash = $1 AND s.user_id = $3 AND s.revoked_at IS NULL AND s.expires_at > NOW() AND c.status = 'accepted' AND c.expires_at > NOW() AND (c.caller_id = u.id OR c.callee_id = u.id) AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = c.caller_id AND b.blocked_id = c.callee_id) OR (b.blocker_id = c.callee_id AND b.blocked_id = c.caller_id)) LIMIT 1", [attachment.tokenHash, roomId, attachment.userId]));
+  return this.database(this.env, client => client.query("SELECT c.caller_id, c.callee_id FROM sessions s JOIN users u ON u.id = s.user_id JOIN call_invites c ON c.id = $2 WHERE s.token_hash = $1 AND s.user_id = $3 AND s.revoked_at IS NULL AND s.expires_at > NOW() AND c.status = 'accepted' AND c.expires_at > NOW() AND (c.caller_id = u.id OR c.callee_id = u.id) AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = c.caller_id AND b.blocked_id = c.callee_id) OR (b.blocker_id = c.callee_id AND b.blocked_id = c.caller_id)) LIMIT 1", [attachment.tokenHash, roomId, attachment.userId]));
  }
  async webSocketMessage(ws, raw) {
   const attachment = ws.deserializeAttachment(); if (!attachment) { ws.close(1008, 'Missing session attachment'); return; }
@@ -122,7 +127,7 @@ export class CallRooms {
    try {
     const permission = attachment.joined && attachment.roomId
      ? await this.authorize(attachment, attachment.roomId)
-     : await withDatabase(this.env, client => client.query('SELECT 1 FROM sessions WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1', [attachment.tokenHash, attachment.userId]));
+     : await this.database(this.env, client => client.query('SELECT 1 FROM sessions WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1', [attachment.tokenHash, attachment.userId]));
     if (!permission.rowCount) { ws.close(1008, 'Session or call invitation expired'); continue; }
     attachment.authFailures = 0;
     ws.serializeAttachment(attachment);
