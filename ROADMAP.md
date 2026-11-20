@@ -16,14 +16,19 @@ Deployment is intentionally postponed until the application has been implemented
 ## Phase 2 — Accounts and profiles
 - [x] Phone OTP request/verification API foundation (PostgreSQL + Twilio adapter; requires deployment environment credentials and live integration test)
 - [x] Persistent opaque sessions, HttpOnly cookie, logout/revocation and basic process-local rate limits (live deployment verification still pending)
-- [ ] Display name, username, avatar and profile editing (display-name/username API committed; avatar and UI integration remain)
+- [x] Display name and username editing API + frontend UI (live database integration pending)
+- [ ] Avatar upload and profile image management
+- [ ] Privacy controls and block/report tools
 - [ ] Privacy controls and block/report tools
 
 ## Phase 3 — Contacts and messaging
-- [x] Backend username search and contact-request API (UI/invite links remain)
-- [x] Backend incoming-request list and accept/decline API (UI remains)
-- [x] Backend one-to-one text-message send/read API (chat UI remains)
-- [ ] Real-time delivery, read-receipt updates and chat UI (message timestamps are stored)
+- [x] Backend username search and contact-request API
+- [x] Frontend username search and send-contact-request UI (live integration pending)
+- [x] Backend incoming-request list and accept/decline API
+- [x] Frontend incoming-request accept/decline UI (live integration pending)
+- [x] Backend one-to-one text-message send/read API
+- [x] Basic frontend one-to-one chat UI (live integration pending)
+- [ ] Real-time message delivery, read-receipt updates and message polling
 - [ ] Safe handling of attachments (if enabled)
 
 ## Phase 4 — Call management
@@ -55,4 +60,4 @@ Deployment is intentionally postponed until the application has been implemented
 - HTTPS domain and hosting choice (only when deployment is approved)
 
 ## Current status
-The repository contains an early calling prototype only. The unchecked items above are not implemented yet. Do not describe this repository as production-ready.
+The repository now contains the early 1-to-1 calling prototype, OTP/session backend foundations, contacts/chat APIs, and a first account/contacts/chat frontend integration. The new UI has not yet been verified against a live PostgreSQL database or SMS provider. The project is not production-ready.
