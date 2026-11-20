@@ -33,7 +33,7 @@ Deployment is intentionally postponed until the application has been implemented
 
 ## Phase 4 — Call management
 - [x] Incoming call prompt with accept/decline
-- [ ] Missed, incoming and outgoing call history
+- [x] Missed, incoming and outgoing call history
 - [x] Basic call status and end-call state
 - [x] Basic call history and elapsed duration (when both start/end timestamps are recorded)
 - [ ] Push notifications for incoming calls/messages
