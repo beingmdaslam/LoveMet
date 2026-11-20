@@ -142,3 +142,16 @@ test("call invitation creation and responses notify both participants", () => {
   assert.match(respondRoute, /publishUser\(result\.rows\[0\]\.caller_id/);
   assert.match(respondRoute, /publishUser\(result\.rows\[0\]\.callee_id/);
 });
+
+
+test("call invitations share the block pair lock and serialize per-caller quota", () => {
+  const route = social.slice(social.indexOf('pathname === "/api/calls/invite"'), social.indexOf('pathname === "/api/calls/respond"'));
+  assert.match(route, /await client\.query\("BEGIN"\)/);
+  assert.match(route, /LEAST\(\$1::text, \$2::text\)/);
+  assert.match(route, /GREATEST\(\$1::text, \$2::text\)/);
+  assert.match(route, /FROM user_blocks b/);
+  assert.match(route, /hashtextextended\(\$1::text, 2\)/);
+  assert.match(route, /SELECT COUNT\(\*\)::INTEGER AS total FROM call_invites/);
+  assert.match(route, /await client\.query\("COMMIT"\)/);
+  assert.match(route, /client\.release\(\)/);
+});
