@@ -19,7 +19,7 @@ export async function handleCallsRead(request, client, env) {
  }
  if (pathname === '/api/calls/status') {
   const inviteId = String(new URL(request.url).searchParams.get('inviteId') || '');
-  if (!/^[0-9a-f-]{36}$/i.test(inviteId)) return json(400, { error: 'Provide a valid call invitation.' });
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(inviteId)) return json(400, { error: 'Provide a valid call invitation.' });
   await client.query("UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW() WHERE id = $1 AND status = 'accepted' AND expires_at <= NOW() AND (caller_id = $2 OR callee_id = $2)", [inviteId, user.id]);
   const result = await client.query('SELECT id, status, expires_at FROM call_invites WHERE id = $1 AND (caller_id = $2 OR callee_id = $2) LIMIT 1', [inviteId, user.id]);
   if (!result.rowCount) return json(404, { error: 'Call invitation not found.' });
