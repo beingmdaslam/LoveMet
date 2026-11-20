@@ -182,10 +182,6 @@ export default {
         return unavailable("backend");
       }
     }
-    if (pathname === "/chat" || pathname === "/signal") {
-      return unavailable("real-time connection");
-    }
-
     if (!env.ASSETS || typeof env.ASSETS.fetch !== "function") {
       return new Response("Static asset binding is not configured.", {
         status: 503,
