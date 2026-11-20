@@ -18,9 +18,36 @@ if (pool) {
   });
 }
 
-const requestLimits = new Map();
+let rateLimitChecks = 0;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 8 * 1024;
+
+async function allowRequest(key, max, windowMs) {
+  // Hash identifiers before persistence so phone numbers and IP addresses are never stored.
+  const keyHash = crypto.createHash("sha256").update(String(key)).digest("hex");
+  const result = await pool.query(
+    `INSERT INTO api_rate_limits (key_hash, hit_count, expires_at)
+     VALUES ($1, 1, NOW() + ($3::double precision * INTERVAL '1 millisecond'))
+     ON CONFLICT (key_hash) DO UPDATE SET
+       hit_count = CASE WHEN api_rate_limits.expires_at <= NOW() THEN 1 ELSE api_rate_limits.hit_count + 1 END,
+       expires_at = CASE WHEN api_rate_limits.expires_at <= NOW()
+         THEN NOW() + ($3::double precision * INTERVAL '1 millisecond')
+         ELSE api_rate_limits.expires_at END
+     RETURNING hit_count`,
+    [keyHash, max, windowMs]
+  );
+  rateLimitChecks += 1;
+  if (rateLimitChecks % 100 === 0) {
+    // Bound stale-row accumulation without putting a large cleanup scan on every request.
+    await pool.query(
+      `DELETE FROM api_rate_limits
+       WHERE key_hash IN (
+         SELECT key_hash FROM api_rate_limits WHERE expires_at <= NOW() LIMIT 500
+       )`
+    );
+  }
+  return Number(result.rows[0].hit_count) <= max;
+}
 
 function publicUser(user) {
   if (!user) return null;
@@ -160,7 +187,7 @@ async function handleAuthRequest(req, res, pathname) {
       const body = await readJson(req);
       const phone = parsePhone(body.phone);
       const ip = getClientIp(req);
-      if (!allowRequest(`ip:${ip}`, 10, 60 * 60 * 1000) ||
+      if (!(await allowRequest(`ip:${ip}`, 10, 60 * 60 * 1000) ||
           !allowRequest(`phone:${phone}`, 3, 15 * 60 * 1000)) {
         json(res, 429, { error: "Too many requests. Try again later." });
         return true;
@@ -220,7 +247,7 @@ async function handleAuthRequest(req, res, pathname) {
         json(res, 400, { error: "Enter the six-digit verification code." });
         return true;
       }
-      if (!allowRequest(`verify-ip:${getClientIp(req)}`, 20, 15 * 60 * 1000) ||
+      if (!(await allowRequest(`verify-ip:${getClientIp(req)}`, 20, 15 * 60 * 1000) ||
           !allowRequest(`verify-phone:${phone}`, 8, 15 * 60 * 1000)) {
         json(res, 429, { error: "Too many attempts. Request a new code later." });
         return true;
