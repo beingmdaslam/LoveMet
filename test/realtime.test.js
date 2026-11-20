@@ -50,3 +50,11 @@ test("read receipts are sent only to the original message sender", () => {
   sender.emit("close");
   recipient.emit("close");
 });
+
+
+test("a user cannot open more than five simultaneous chat sockets", () => {
+  const sockets = Array.from({ length: 6 }, () => new FakeSocket());
+  const accepted = sockets.map((socket, index) => addClient("socket-cap-test-user", socket));
+  assert.deepEqual(accepted, [true, true, true, true, true, false]);
+  sockets.forEach(socket => socket.emit("close"));
+});
