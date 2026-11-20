@@ -19,6 +19,7 @@ export class CallRooms {
   if (!session.rowCount) return new Response('Sign in required.', { status: 401 });
   const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
   this.ctx.acceptWebSocket(server);
+  await this.ctx.storage.setAlarm(Date.now() + 60000);
   server.serializeAttachment({ userId: session.rows[0].id, tokenHash: hash, expectedRoomId, roomId: null, joined: false, isInitiator: false });
   return new Response(null, { status: 101, webSocket: client });
  }
