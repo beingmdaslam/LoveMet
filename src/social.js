@@ -192,7 +192,7 @@ async function handleSocialRequest(req, res, pathname) {
 
     if (pathname === "/api/calls/invites" && req.method === "GET") {
       await pool.query(
-        `UPDATE call_invites SET status = 'missed', updated_at = NOW()
+        `UPDATE call_invites SET status = 'missed', updated_at = NOW(), ended_at = NOW()
          WHERE callee_id = $1 AND status = 'ringing' AND expires_at <= NOW()`,
         [user.id]
       );
