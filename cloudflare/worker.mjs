@@ -1,6 +1,8 @@
 import { withDatabase } from "./database.mjs";
 import { handleAuthMe } from "./auth.mjs";
 import { handleProfilePatch } from "./profile.mjs";
+import { handleContactsGet } from "./contacts.mjs";
+import { handleMessages } from "./messages.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -30,6 +32,20 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/api/messages") {
+      try {
+        return await withDatabase(env, client => handleMessages(request, client, env));
+      } catch {
+        return unavailable("API");
+      }
+    }
+    if (pathname === "/api/contacts" || pathname === "/api/contacts/requests") {
+      try {
+        return await withDatabase(env, client => handleContactsGet(request, client));
+      } catch {
+        return unavailable("API");
+      }
+    }
     if (pathname === "/api/profile") {
       try {
         return await withDatabase(env, client => handleProfilePatch(request, client));
