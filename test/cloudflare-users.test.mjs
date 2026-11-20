@@ -8,7 +8,7 @@ function client() {
 }
 test('username search rate-limits, validates term and excludes blocked users', async () => {
  const db = client();
- const response = await handleUserLookup(new Request('https://lovemet.example/api/users/search?username=%40fri'), db, { OTP_HASH_SECRET: secret });
+ const response = await handleUserLookup(new Request('https://lovemet.example/api/users/search?username=%40fri', { headers: { cookie: 'lovemet_session=lookup-session' } }), db, { OTP_HASH_SECRET: secret });
  assert.equal(response.status, 200);
  assert.deepEqual(await response.json(), { users: [{ id: 'u2', username: 'friend', display_name: 'Friend', avatar_url: null }] });
  assert.ok(db.calls.some(call => call.sql.includes('INSERT INTO api_rate_limits')));
@@ -17,13 +17,13 @@ test('username search rate-limits, validates term and excludes blocked users', a
 });
 test('username search rejects invalid terms', async () => {
  const db = client();
- const response = await handleUserLookup(new Request('https://lovemet.example/api/users/search?username=ab'), db, { OTP_HASH_SECRET: secret });
+ const response = await handleUserLookup(new Request('https://lovemet.example/api/users/search?username=ab', { headers: { cookie: 'lovemet_session=lookup-session' } }), db, { OTP_HASH_SECRET: secret });
  assert.equal(response.status, 400);
  assert.equal(db.calls.length, 2);
 });
 test('blocked-user list is scoped to the signed-in account', async () => {
  const db = client();
- const response = await handleUserLookup(new Request('https://lovemet.example/api/contacts/blocks'), db, { OTP_HASH_SECRET: secret });
+ const response = await handleUserLookup(new Request('https://lovemet.example/api/contacts/blocks', { headers: { cookie: 'lovemet_session=lookup-session' } }), db, { OTP_HASH_SECRET: secret });
  assert.equal(response.status, 200);
  assert.deepEqual(db.calls[1].args, ['u1']);
  assert.ok(db.calls[1].sql.includes('b.blocker_id = $1'));
