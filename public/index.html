@@ -42,7 +42,7 @@
         <div class="subpanel"><h2>Find people</h2><input class="field" id="searchUsername" maxlength="20" placeholder="Search username"><button id="searchBtn">Search</button><div id="searchResults" class="list"></div><h2 style="margin-top:16px">Contact requests</h2><div id="incomingRequests" class="list"></div></div>
       </div>
       <div class="subpanel"><h2>Your contacts</h2><div id="contactsList" class="list"></div><h2 style="margin-top:16px">Incoming calls</h2><div id="incomingCalls" class="list"></div><h2 style="margin-top:16px">Recent calls</h2><div id="callHistory" class="list"></div><p class="hint" id="callInviteStatus"></p><div id="chatArea" class="hidden"><h2 id="chatTitle" style="margin-top:18px">Chat</h2><div id="chatLog" class="chatLog" aria-live="polite"></div><div class="join"><input id="messageInput" placeholder="Write a message" maxlength="4000"><button id="sendMessageBtn">Send</button></div><p class="hint" id="chatStatus"></p></div></div>
-      <div class="rowActions" style="margin-top:12px"><button class="secondary" id="refreshAccountBtn">Refresh</button><button class="danger" id="logoutBtn">Sign out</button></div>
+      <div class="rowActions" style="margin-top:12px"><button class="secondary" id="refreshAccountBtn">Refresh</button><button class="danger" id="logoutBtn">Sign out</button><button class="danger" id="deleteAccountBtn">Delete account</button></div>
     </div>
   </section>
   <section class="panel">
@@ -96,6 +96,8 @@
   $("sendMessageBtn").onclick=sendMessage;$("messageInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
   $("refreshAccountBtn").onclick=load;
   $("logoutBtn").onclick=async()=>{try{await api("/api/auth/logout",{method:"POST",body:"{}"});}catch{}selected=null;signed.classList.add("hidden");auth.classList.remove("hidden");say("authStatus","Signed out.");};
+  $("deleteAccountBtn").onclick=async()=>{if(!window.confirm("Permanently delete your LoveMet account, contacts, messages and call history? This cannot be undone."))return;try{await api("/api/account",{method:"DELETE"});selected=null;currentUserId=null;signed.classList.add("hidden");auth.classList.remove("hidden");say("authStatus","Your account and associated data were deleted.");}catch(e){say("profileStatus",e.message);}};
+
   window.addEventListener("lovemet:call-ended",callHistory);
   load();
   window.setInterval(()=>{if(!document.hidden){if(selected&&!$("chatArea").classList.contains("hidden"))messages();refreshCalls();}},3000);
