@@ -54,12 +54,17 @@ chatWss.on("connection", async (ws, req) => {
     const user = await getUser(req);
     if (!user) { ws.close(1008, "Sign in required"); return; }
     if (!addClient(user.id, ws)) { ws.close(1013, "Too many chat connections"); return; }
+    let verificationFailures = 0;
     const authTimer = setInterval(async () => {
       try {
         const current = await getUser(req);
+        verificationFailures = 0;
         if (!current || current.id !== user.id) ws.close(1008, "Session expired");
       } catch {
-        ws.close(1011, "Session verification unavailable");
+        // A single transient database/network error must not kick a user out.
+        // Retry on the next interval; only stop after repeated failures.
+        verificationFailures += 1;
+        if (verificationFailures >= 3) ws.close(1011, "Session verification unavailable");
       }
     }, 60000);
     ws.once("close", () => clearInterval(authTimer));
@@ -90,6 +95,7 @@ wss.on("connection", (ws, req) => {
     return;
   }
   let authCheckInFlight = false;
+  let authVerificationFailures = 0;
   let authTimer = null;
   ws.authPromise = getUser(req).then(user => {
     ws.authUser = user;
@@ -104,9 +110,12 @@ wss.on("connection", (ws, req) => {
       authCheckInFlight = true;
       try {
         const current = await getUser(req);
+        authVerificationFailures = 0;
         if (!current || current.id !== user.id) ws.close(1008, "Session expired");
       } catch {
-        ws.close(1011, "Session verification unavailable");
+        // Preserve an active call through brief database outages.
+        authVerificationFailures += 1;
+        if (authVerificationFailures >= 3) ws.close(1011, "Session verification unavailable");
       } finally {
         authCheckInFlight = false;
       }
