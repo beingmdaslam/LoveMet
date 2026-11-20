@@ -43,3 +43,11 @@ test("OTP rate limiter caps attacker-controlled key growth", () => {
   assert.match(auth, /requestLimits\.size >= 20000/);
   assert.match(auth, /if \(!entry && requestLimits\.size >= 20000\) return false/);
 });
+
+test("message history is cursor-paginated and bounded", () => {
+  assert.match(social, /const beforeRaw = url\.searchParams\.get\("before"\)/);
+  assert.match(social, /LIMIT 51/);
+  assert.match(social, /const hasMore = result\.rows\.length > 50/);
+  assert.match(social, /Invalid message cursor/);
+  assert.match(fs.readFileSync(path.join(root, "public/index.html"), "utf8"), /loadOlderMessagesBtn/);
+});
