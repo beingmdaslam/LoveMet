@@ -249,3 +249,9 @@ test("active call participant lookups have narrow expiry indexes in schema and m
     assert.ok(source.includes("WHERE status IN ('ringing', 'accepted')"));
   }
 });
+
+
+test("duplicate call-invitation conflicts report participant-wide busy state", () => {
+  const route = social.slice(social.indexOf('pathname === "/api/calls/invite"'), social.indexOf('pathname === "/api/calls/respond"'));
+  assert.match(route, /if \(error\.code === "23505"\)[\s\S]*You or this contact is already busy with another call/);
+});
