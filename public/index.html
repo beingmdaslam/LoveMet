@@ -48,7 +48,7 @@
   <section class="panel">
     <input id="room" type="hidden" aria-hidden="true">
     <button id="joinBtn" class="hidden" type="button">Join accepted call</button>
-    <div id="status" role="status">Choose Video call beside an accepted contact. The other person must accept the invitation.</div>
+    <div id="status" role="status">Choose Video call beside an accepted contact. The other person must accept the invitation.</div><p id="callTimer" class="hint" style="text-align:center">00:00</p>
     <div class="videos">
       <div class="videoBox"><span class="tag">You</span><video id="localVideo" autoplay playsinline muted></video></div>
       <div class="videoBox"><span class="tag">Other person</span><video id="remoteVideo" autoplay playsinline></video></div>
@@ -56,6 +56,7 @@
     <div class="controls">
       <button class="secondary" id="micBtn" disabled>Mute mic</button>
       <button class="secondary" id="cameraBtn" disabled>Turn camera off</button>
+      <button class="secondary" id="switchCameraBtn" disabled>Switch camera</button>
       <button class="danger" id="leaveBtn" disabled>Leave call</button>
     </div>
     <p class="note">Call invitations require an accepted contact and an active LoveMet account. End-to-end encryption is not implemented. For reliable calls across mobile networks, a properly configured TURN server and HTTPS deployment will be required. Camera and microphone work on HTTPS or localhost.</p>
@@ -109,8 +110,8 @@
   const $ = (id) => document.getElementById(id);
   const roomInput = $("room"), status = $("status"), joinBtn = $("joinBtn");
   const localVideo = $("localVideo"), remoteVideo = $("remoteVideo");
-  const micBtn = $("micBtn"), cameraBtn = $("cameraBtn"), leaveBtn = $("leaveBtn");
-  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true, activeCallInvite = null, statusTimer = null;
+  const micBtn = $("micBtn"), cameraBtn = $("cameraBtn"), switchCameraBtn = $("switchCameraBtn"), leaveBtn = $("leaveBtn"), callTimer = $("callTimer");
+  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true, cameraFacing = "user", activeCallInvite = null, statusTimer = null, timerInterval = null, callStartedAt = null;
 
   function say(message) { status.textContent = message; }
   function send(type, data) {
@@ -146,7 +147,10 @@
           if (msg.type === "joined") {
             joined = true; isInitiator = !!msg.isInitiator; roomInput.value = msg.roomId; roomInput.disabled = true;
             say("Secure invitation accepted. Connecting to your contact…");
-            leaveBtn.disabled = micBtn.disabled = cameraBtn.disabled = false;
+            leaveBtn.disabled = micBtn.disabled = cameraBtn.disabled = switchCameraBtn.disabled = false;
+            callStartedAt = Date.now();
+            if (timerInterval) window.clearInterval(timerInterval);
+            timerInterval = window.setInterval(() => { const elapsed=Math.floor((Date.now()-callStartedAt)/1000); callTimer.textContent=String(Math.floor(elapsed/60)).padStart(2,"0")+":"+String(elapsed%60).padStart(2,"0"); },1000);
             if (statusTimer) window.clearInterval(statusTimer);
             statusTimer = window.setInterval(async () => {
               try {
@@ -194,7 +198,9 @@
     if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
     localVideo.srcObject = remoteVideo.srcObject = null;
     joined = false; roomInput.disabled = false; joinBtn.disabled = false;
-    leaveBtn.disabled = micBtn.disabled = cameraBtn.disabled = true;
+    leaveBtn.disabled = micBtn.disabled = cameraBtn.disabled = switchCameraBtn.disabled = true;
+    if (timerInterval) { window.clearInterval(timerInterval); timerInterval = null; }
+    callStartedAt = null; callTimer.textContent = "00:00"; cameraFacing = "user";
     micOn = cameraOn = true; micBtn.textContent = "Mute mic"; cameraBtn.textContent = "Turn camera off";
   }
   window.addEventListener("lovemet:join-call",event=>startCall(event.detail.inviteId));
@@ -203,6 +209,25 @@
     if (!localStream) return;
     micOn = !micOn; localStream.getAudioTracks().forEach(track => track.enabled = micOn);
     micBtn.textContent = micOn ? "Mute mic" : "Unmute mic";
+  });
+  switchCameraBtn.addEventListener("click", async () => {
+    if (!localStream || !peer) return;
+    const nextFacing = cameraFacing === "user" ? "environment" : "user";
+    try {
+      const replacementStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: nextFacing } }, audio: false });
+      const replacementTrack = replacementStream.getVideoTracks()[0];
+      if (!replacementTrack) throw new Error("No camera is available.");
+      const sender = peer.getSenders().find(item => item.track && item.track.kind === "video");
+      if (!sender) throw new Error("Video track is unavailable.");
+      replacementTrack.enabled = cameraOn;
+      await sender.replaceTrack(replacementTrack);
+      const previousTrack = localStream.getVideoTracks()[0];
+      if (previousTrack) { localStream.removeTrack(previousTrack); previousTrack.stop(); }
+      localStream.addTrack(replacementTrack);
+      localVideo.srcObject = localStream;
+      cameraFacing = nextFacing;
+      say(cameraFacing === "user" ? "Front camera selected." : "Back camera selected.");
+    } catch (error) { say("Could not switch camera: " + error.message); }
   });
   cameraBtn.addEventListener("click", () => {
     if (!localStream) return;
