@@ -41,7 +41,7 @@ export class CallRooms {
    const membership = await this.ctx.storage.transaction(async txn => {
     const entries = await txn.list({ prefix: 'member:' + roomId + ':' });
     const existing = await txn.get(memberKey);
-    const existingSocketOpen = existing?.connected && this.ctx.getWebSockets().some(peer => peer.deserializeAttachment()?.socketId === existing.socketId);
+    const existingSocketOpen = existing?.connected && this.ctx.getWebSockets().some(peer => { const state = peer.deserializeAttachment(); return state?.userId === attachment.userId && state?.roomId === roomId && state?.joined && state?.socketId === existing.socketId; });
     if (existingSocketOpen) return { error: 'duplicate' };
     const reconnected = Boolean(existing && (( !existing.connected && existing.expiresAt > Date.now()) || (existing.connected && !existingSocketOpen)));
     const others = [...entries.entries()].filter(([key, value]) => key !== memberKey && (value.connected || value.expiresAt > Date.now()));
