@@ -197,3 +197,25 @@ test('call room closes authenticated sockets that never join within two minutes'
  await room.alarm();
  assert.deepEqual(peer.closed, { code: 1008, reason: 'Call join timed out' });
 });
+
+test('call room refuses non-participants before allocating a WebSocket', async () => {
+ const { room, sockets } = setup();
+ room.database = async (_env, callback) => callback({ query: async () => ({ rowCount: 1, rows: [{ id: 'u3' }] }) });
+ room.authorize = async () => ({ rowCount: 0, rows: [] });
+ const response = await room.fetch(new Request('https://lovemet.example/signal?roomId=' + roomId, {
+  headers: { Upgrade: 'websocket', Origin: 'https://lovemet.example', Cookie: 'lovemet_session=valid-session' }
+ }));
+ assert.equal(response.status, 403);
+ assert.equal(sockets.length, 0);
+});
+
+test('call room permits an accepted call participant to upgrade', async () => {
+ const { room, sockets } = setup();
+ room.database = async (_env, callback) => callback({ query: async () => ({ rowCount: 1, rows: [{ id: 'u1' }] }) });
+ room.authorize = async () => ({ rowCount: 1, rows: [{ caller_id: 'u1', callee_id: 'u2' }] });
+ const response = await room.fetch(new Request('https://lovemet.example/signal?roomId=' + roomId, {
+  headers: { Upgrade: 'websocket', Origin: 'https://lovemet.example', Cookie: 'lovemet_session=valid-session' }
+ }));
+ assert.equal(response.status, 101);
+ assert.equal(sockets.length, 1);
+});
