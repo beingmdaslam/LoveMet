@@ -37,6 +37,13 @@ async function tokenHash(token) {
   return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, "0")).join("");
 }
 
+function upgradeRequired() {
+  return new Response("WebSocket upgrade required.", {
+    status: 426,
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }
+  });
+}
+
 function unavailable(service) {
   return new Response(JSON.stringify({
     error: "service_unavailable",
@@ -56,7 +63,7 @@ export default {
     // unknown API paths fail closed below until the full migration is complete.
     if (pathname === "/chat") {
       if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
-        return new Response("WebSocket upgrade required.", { status: 426, headers: JSON_HEADERS });
+        return upgradeRequired();
       }
       if (!env.USER_EVENTS) return unavailable("real-time connection");
       const token = cookieToken(request);
