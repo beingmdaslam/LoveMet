@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 
 async function getWorker() { return (await import("../cloudflare/worker.mjs")).default; }
 
@@ -62,4 +63,14 @@ test("Cloudflare static assets receive baseline browser security headers", async
   assert.equal(response.headers.get("permissions-policy"), "camera=(self), microphone=(self), geolocation=()");
   assert.equal(response.headers.get("cross-origin-resource-policy"), "same-origin");
   assert.equal(await response.text(), "static app");
+});
+
+test("Wrangler config declares separate SQLite-backed call and user-event Durable Objects", () => {
+  const config = JSON.parse(fs.readFileSync(new URL("../wrangler.jsonc", "file://" + __filename), "utf8"));
+  assert.equal(config.main, "./cloudflare/worker.mjs");
+  assert.equal(config.assets.binding, "ASSETS");
+  assert.deepEqual(config.durable_objects.bindings.map(binding => binding.name), ["CALL_ROOMS", "USER_EVENTS"]);
+  assert.deepEqual(config.migrations.map(migration => migration.tag), ["v1", "v2"]);
+  assert.deepEqual(config.migrations[0].new_sqlite_classes, ["CallRooms"]);
+  assert.deepEqual(config.migrations[1].new_sqlite_classes, ["UserEvents"]);
 });
