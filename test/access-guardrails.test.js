@@ -85,3 +85,12 @@ test("report daily limit is serialized per reporter", () => {
   assert.match(reportRoute, /await client\.query\("COMMIT"\)/);
   assert.match(reportRoute, /client\.release\(\)/);
 });
+
+
+test("WebSocket revalidates call authorization before relaying signaling packets", () => {
+  const relay = server.slice(server.indexOf('if (["offer", "answer", "ice", "hangup"]'), server.indexOf('\n    }\n  });'));
+  assert.match(relay, /message\.type !== "hangup"/);
+  assert.match(relay, /status = 'accepted' AND expires_at > NOW\(\)/);
+  assert.match(relay, /FROM user_blocks b/);
+  assert.match(relay, /ws\.close\(1008, "Call authorization expired"\)/);
+});
