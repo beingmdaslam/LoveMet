@@ -27,3 +27,22 @@ test('OTP and logout mutations reject foreign origins before database access', a
  const db = baseDb(); const response = await handleOtpAndLogout(req('/api/auth/logout', {}, { origin: 'https://attacker.example' }), db, {});
  assert.equal(response.status, 403); assert.equal(db.calls.length, 0);
 });
+test('OTP endpoints reject invalid phone numbers before database access', async () => {
+ const db = baseDb();
+ const response = await handleOtpAndLogout(req('/api/auth/request-otp', { phone: '12345' }), db, { OTP_HASH_SECRET: secret });
+ assert.equal(response.status, 400);
+ assert.equal(db.calls.length, 0);
+});
+test('OTP endpoints report missing or weak hash secret as service unavailable', async () => {
+ const db = baseDb();
+ const response = await handleOtpAndLogout(req('/api/auth/request-otp', { phone }), db, { OTP_HASH_SECRET: 'too-short' });
+ assert.equal(response.status, 503);
+ assert.equal(db.calls.length, 0);
+});
+test('OTP challenge is rolled back when the SMS provider rejects delivery', async () => {
+ const db = baseDb();
+ const response = await handleOtpAndLogout(req('/api/auth/request-otp', { phone }), db, { OTP_HASH_SECRET: secret, TWILIO_ACCOUNT_SID: 'AC123', TWILIO_AUTH_TOKEN: 'test-token', TWILIO_FROM_NUMBER: '+14155550000' }, async () => new Response('rejected', { status: 400 }));
+ assert.equal(response.status, 500);
+ assert.ok(db.calls.some(call => call.sql.includes('INSERT INTO otp_challenges')));
+ assert.ok(db.calls.some(call => call.sql === 'ROLLBACK'));
+});
