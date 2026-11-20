@@ -2,7 +2,7 @@ const crypto = require("node:crypto");
 const { Pool } = require("pg");
 const {
   normalizePhone, createOtp, hashOtp, verifyOtp,
-  createSessionToken, hashSessionToken
+  createSessionToken, hashSessionToken, isSameOriginRequest
 } = require("./security");
 
 const pool = process.env.DATABASE_URL ? new Pool({
@@ -110,7 +110,7 @@ async function sendSms(phone, code) {
 }
 
 function cookieOptions(req, maxAge) {
-  const secure = req.socket.encrypted || req.headers["x-forwarded-proto"] === "https";
+  const secure = req.socket.encrypted || String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim() === "https";
   return `lovemet_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 
@@ -152,6 +152,10 @@ async function handleAuthRequest(req, res, pathname) {
   }
 
   try {
+    if (["POST", "PATCH", "DELETE"].includes(req.method) && !isSameOriginRequest(req)) {
+      json(res, 403, { error: "Cross-origin request blocked." });
+      return true;
+    }
     if (pathname === "/api/auth/request-otp" && req.method === "POST") {
       const body = await readJson(req);
       const phone = parsePhone(body.phone);
