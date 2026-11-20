@@ -62,3 +62,16 @@ test("contact requests serialize unordered account pairs and reject reverse dupl
   assert.match(social, /await client\.query\("COMMIT"\)/);
   assert.match(social, /client\.release\(\)/);
 });
+
+
+test("blocking and contact requests share a transaction-scoped pair lock", () => {
+  const blockRoute = social.slice(social.indexOf('pathname === "/api/contacts/block"'), social.indexOf('pathname === "/api/contacts/unblock"'));
+  const requestRoute = social.slice(social.indexOf('pathname === "/api/contacts/request"'), social.indexOf('pathname === "/api/contacts/respond"'));
+  assert.match(blockRoute, /pg_advisory_xact_lock\(hashtextextended/);
+  assert.match(blockRoute, /await client\.query\("BEGIN"\)/);
+  assert.match(blockRoute, /await client\.query\("COMMIT"\)/);
+  assert.match(blockRoute, /UPDATE call_invites SET status = 'ended'/);
+  assert.match(requestRoute, /pg_advisory_xact_lock\(hashtextextended/);
+  assert.match(requestRoute, /blockedInsideLock/);
+  assert.match(requestRoute, /Contact requests are unavailable between these accounts/);
+});
