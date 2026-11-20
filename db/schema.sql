@@ -64,6 +64,25 @@ CREATE INDEX IF NOT EXISTS messages_conversation_idx
   ON messages (sender_id, recipient_id, created_at DESC);
 
 
+
+-- Authenticated one-to-one call invitations; signaling access is restricted to accepted invites.
+CREATE TABLE IF NOT EXISTS call_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  caller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  callee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'ringing' CHECK (status IN ('ringing','accepted','declined','cancelled','missed','ended')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '60 seconds'),
+  CHECK (caller_id <> callee_id)
+);
+CREATE INDEX IF NOT EXISTS call_invites_callee_status_idx
+  ON call_invites (callee_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS call_invites_caller_status_idx
+  ON call_invites (caller_id, status, created_at DESC);
+ALTER TABLE call_invites ENABLE ROW LEVEL SECURITY;
+REVOKE ALL PRIVILEGES ON TABLE call_invites FROM anon, authenticated;
+
 -- Supabase hardening: app data is accessed only by the trusted Node backend.
 -- Do not add public client policies for these private account tables.
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
