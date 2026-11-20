@@ -307,3 +307,14 @@ test("logout revokes the session and ends accepted calls for that account", () =
   assert.match(logout, /publishUser\(call\.caller_id, \{ type: "call-update" \}\)/);
   assert.match(logout, /publishUser\(call\.callee_id, \{ type: "call-update" \}\)/);
 });
+
+
+test("primary chat controls and video previews have accessible labels and focus states", () => {
+  const html = fs.readFileSync(path.join(root, "public/index.html"), "utf8");
+  assert.match(html, /for="searchUsername"/);
+  assert.match(html, /for="messageInput"/);
+  assert.match(html, /id="chatLog"[^>]*role="log"[^>]*aria-live="polite"/);
+  assert.match(html, /id="localVideo"[^>]*aria-label=/);
+  assert.match(html, /id="remoteVideo"[^>]*aria-label=/);
+  assert.match(html, /button:focus-visible,input:focus-visible,a:focus-visible/);
+});
