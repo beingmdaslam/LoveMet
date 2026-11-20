@@ -37,7 +37,7 @@ test("Cloudflare preview does not claim backend health before database integrati
 
 test("Cloudflare preview refuses chat and signaling sockets until Durable Objects are ready", async () => {
   const worker = await getWorker();
-  for (const pathname of ["/chat", "/signal"]) {
+  for (const pathname of ["/chat", "/signal?roomId=11111111-1111-4111-8111-111111111111"]) {
     const response = await worker.fetch(new Request(`https://example.test${pathname}`, {
       headers: { Upgrade: "websocket" }
     }), assets());
