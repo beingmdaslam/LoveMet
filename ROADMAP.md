@@ -78,7 +78,9 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Add SQLite-backed hibernatable Durable Object call signaling with session/invite/block checks, two-participant cap, reconnect grace and bounded messages
 - [x] Add per-user hibernatable chat event Durable Objects with session revalidation, five-socket cap and receive-only clients
 - [x] Publish new messages and read receipts to recipient event rooms after database commit (HTTP polling remains fallback)
-- [ ] Wire live call/contact events for logout, account deletion and invitation mutations
+- [x] Broadcast call state changes to both users after invite/accept/decline/cancel/end, logout and account deletion
+- [x] Broadcast contact request/accept/decline and block/unblock changes to affected accounts
+- [ ] Add explicit session-revoked/account-deleted event to immediately close all of the user's chat sockets
 - [ ] Add Workers integration tests and compare security behavior with the Node backend
 - [ ] Complete real-device, network, privacy and operational checks before requesting deployment approval
 
