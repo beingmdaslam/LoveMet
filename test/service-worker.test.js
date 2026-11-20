@@ -35,6 +35,7 @@ test("service worker does not intercept signaling or non-GET requests", () => {
   const onFetch = loadFetchHandler();
   for (const request of [
     { method: "GET", url: "https://lovemet.example/signal", mode: "cors" },
+    { method: "GET", url: "https://lovemet.example/chat", mode: "cors" },
     { method: "POST", url: "https://lovemet.example/api/messages", mode: "cors" }
   ]) {
     let intercepted = false;
