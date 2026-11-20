@@ -75,25 +75,6 @@ function getClientIp(req) {
   return req.socket.remoteAddress || "unknown";
 }
 
-function allowRequest(key, max, windowMs) {
-  const now = Date.now();
-  if (requestLimits.size > 10000) {
-    for (const [storedKey, entry] of requestLimits) {
-      if (now >= entry.resetAt) requestLimits.delete(storedKey);
-    }
-  }
-  const entry = requestLimits.get(key);
-  if (!entry || now >= entry.resetAt) {
-    // Bound memory when an attacker rotates source addresses or phone numbers.
-    if (!entry && requestLimits.size >= 20000) return false;
-    requestLimits.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (entry.count >= max) return false;
-  entry.count += 1;
-  return true;
-}
-
 async function readJson(req) {
   let body = "";
   for await (const chunk of req) {
@@ -187,8 +168,8 @@ async function handleAuthRequest(req, res, pathname) {
       const body = await readJson(req);
       const phone = parsePhone(body.phone);
       const ip = getClientIp(req);
-      if (!(await allowRequest(`ip:${ip}`, 10, 60 * 60 * 1000) ||
-          !allowRequest(`phone:${phone}`, 3, 15 * 60 * 1000)) {
+      if (!(await allowRequest(`ip:${ip}`, 10, 60 * 60 * 1000)) ||
+          !(await allowRequest(`phone:${phone}`, 3, 15 * 60 * 1000))) {
         json(res, 429, { error: "Too many requests. Try again later." });
         return true;
       }
@@ -247,8 +228,8 @@ async function handleAuthRequest(req, res, pathname) {
         json(res, 400, { error: "Enter the six-digit verification code." });
         return true;
       }
-      if (!(await allowRequest(`verify-ip:${getClientIp(req)}`, 20, 15 * 60 * 1000) ||
-          !allowRequest(`verify-phone:${phone}`, 8, 15 * 60 * 1000)) {
+      if (!(await allowRequest(`verify-ip:${getClientIp(req)}`, 20, 15 * 60 * 1000)) ||
+          !(await allowRequest(`verify-phone:${phone}`, 8, 15 * 60 * 1000))) {
         json(res, 429, { error: "Too many attempts. Request a new code later." });
         return true;
       }
