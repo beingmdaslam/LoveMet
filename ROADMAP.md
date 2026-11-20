@@ -73,7 +73,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Add automated tests for static routing and unsupported backend routes
 - [x] Add request-scoped Hyperdrive PostgreSQL client adapter with guaranteed connection cleanup
 - [x] Add database-backed Worker readiness check and Fetch-native `/api/auth/request-otp`, `/api/auth/verify-otp`, `/api/auth/logout`, `/api/auth/me`, `/api/account`, `/api/profile`, `/api/contacts`, `/api/contacts/requests`, `/api/contacts/blocks`, `/api/users/search`, `/api/messages`, `/api/calls/config`, `/api/calls/history`, `/api/contacts/request` and `/api/contacts/respond`, `/api/contacts/block`, `/api/contacts/unblock` and `/api/users/report` handlers with session checks, same-origin protection, bounded JSON bodies and username conflict handling
-- [ ] Refactor remaining authentication and social APIs to Fetch-native request handlers
+- [x] Port all current Node authentication and social API routes to Fetch-native Worker handlers; live runtime/database parity testing remains pending
 - [ ] Configure a real Hyperdrive binding to the Supabase database and verify PostgreSQL transactions in the Workers runtime
 - [x] Add SQLite-backed hibernatable Durable Object call signaling with session/invite/block checks on each packet and every 60 seconds, atomic serialized two-participant admission with socket-identity guards, reconnect grace and bounded messages
 - [x] Add per-user hibernatable chat event Durable Objects with session revalidation, five-socket cap and receive-only clients
