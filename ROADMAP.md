@@ -51,7 +51,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Authentication and authorization tests
 - [ ] Secure signaling and input validation
 - [ ] Data retention and account deletion
-- [ ] Privacy policy and terms
+- [x] Draft privacy notice and terms pages (operator/legal review and contact details required before launch)
 - [ ] Accessibility and low-bandwidth behavior
 - [ ] Automated tests and production readiness review
 
