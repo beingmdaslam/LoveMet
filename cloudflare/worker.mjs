@@ -41,7 +41,7 @@ async function tokenHash(token) {
 function unavailable(service) {
   return new Response(JSON.stringify({
     error: "service_unavailable",
-    message: `LoveMet ${service} is not connected in this preview yet.`
+    message: `LoveMet ${service} is temporarily unavailable.`
   }), {
     status: 503,
     headers: { ...JSON_HEADERS, "Retry-After": "60" }
