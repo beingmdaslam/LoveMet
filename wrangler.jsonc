@@ -3,6 +3,7 @@
   "name": "lovemet-cloudflare-preview",
   "main": "./cloudflare/worker.mjs",
   "compatibility_date": "2026-11-20",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./public/",
     "binding": "ASSETS",
