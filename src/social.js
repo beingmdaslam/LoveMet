@@ -424,52 +424,87 @@ async function handleSocialRequest(req, res, pathname) {
     if (pathname === "/api/calls/invite" && req.method === "POST") {
       const body = await readJson(req);
       const contactId = String(body.contactId || "");
-      if (!/^[0-9a-f-]{36}$/i.test(contactId) || !(await isContact(user.id, contactId))) {
+      if (!/^[0-9a-f-]{36}$/i.test(contactId) || contactId === user.id) {
         json(res, 403, { error: "Calls are available only with accepted contacts." });
         return true;
       }
-      await pool.query(
-        `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
-         WHERE status IN ('ringing','accepted') AND expires_at <= NOW()
-           AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
-        [user.id, contactId]
-      );
-      const recentCalls = await pool.query(
-        `SELECT COUNT(*)::INTEGER AS total FROM call_invites
-         WHERE caller_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
-        [user.id]
-      );
-      if (recentCalls.rows[0].total >= 20) {
-        json(res, 429, { error: "Call invitation limit reached. Try again later." });
-        return true;
-      }
-      const active = await pool.query(
-        `SELECT id FROM call_invites
-         WHERE status IN ('ringing','accepted') AND expires_at > NOW()
-           AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))
-         LIMIT 1`,
-        [user.id, contactId]
-      );
-      if (active.rowCount) {
-        json(res, 409, { error: "A call with this contact is already active." });
-        return true;
-      }
+      const client = await pool.connect();
       try {
-        const created = await pool.query(
+        await client.query("BEGIN");
+        // Match the block route's pair lock: a block cannot race a new invitation.
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
+          [user.id, contactId]
+        );
+        const contact = await client.query(
+          `SELECT 1 FROM contact_requests
+           WHERE status = 'accepted'
+             AND ((requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1))
+             AND NOT EXISTS (
+               SELECT 1 FROM user_blocks b
+               WHERE (b.blocker_id = $1 AND b.blocked_id = $2)
+                  OR (b.blocker_id = $2 AND b.blocked_id = $1)
+             )
+           LIMIT 1`,
+          [user.id, contactId]
+        );
+        if (!contact.rowCount) {
+          await client.query("ROLLBACK");
+          json(res, 403, { error: "Calls are available only with accepted contacts." });
+          return true;
+        }
+        // Serialize the caller's hourly quota across calls to different contacts.
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 2))",
+          [user.id]
+        );
+        await client.query(
+          `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
+           WHERE status IN ('ringing','accepted') AND expires_at <= NOW()
+             AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
+          [user.id, contactId]
+        );
+        const recentCalls = await client.query(
+          `SELECT COUNT(*)::INTEGER AS total FROM call_invites
+           WHERE caller_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
+          [user.id]
+        );
+        if (recentCalls.rows[0].total >= 20) {
+          await client.query("ROLLBACK");
+          json(res, 429, { error: "Call invitation limit reached. Try again later." });
+          return true;
+        }
+        const active = await client.query(
+          `SELECT id FROM call_invites
+           WHERE status IN ('ringing','accepted') AND expires_at > NOW()
+             AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))
+           LIMIT 1`,
+          [user.id, contactId]
+        );
+        if (active.rowCount) {
+          await client.query("ROLLBACK");
+          json(res, 409, { error: "A call with this contact is already active." });
+          return true;
+        }
+        const created = await client.query(
           `INSERT INTO call_invites (caller_id, callee_id)
            VALUES ($1, $2)
            RETURNING id, caller_id, callee_id, status, created_at, expires_at`,
           [user.id, contactId]
         );
+        await client.query("COMMIT");
         publishUser(contactId, { type: "call-update" });
         publishUser(user.id, { type: "call-update" });
         json(res, 201, { invite: created.rows[0] });
       } catch (error) {
+        try { await client.query("ROLLBACK"); } catch {}
         if (error.code === "23505") {
           json(res, 409, { error: "A call with this contact is already active." });
           return true;
         }
         throw error;
+      } finally {
+        client.release();
       }
       return true;
     }
