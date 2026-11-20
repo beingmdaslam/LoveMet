@@ -8,7 +8,7 @@
   <title>LoveMet — Video Calling</title>
   <style>
     :root{color-scheme:dark;--bg:#100b12;--panel:#1b121d;--pink:#ff4f87;--muted:#b9aab6}
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0,#351629 0,var(--bg) 52%);color:#fff;font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+    *{box-sizing:border-box}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #fff;outline-offset:3px} .srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0,#351629 0,var(--bg) 52%);color:#fff;font:16px system-ui,-apple-system,Segoe UI,sans-serif}
     main{width:min(980px,100%);margin:auto;padding:28px 18px 40px}.brand{text-align:center;margin:10px 0 26px}.brand h1{margin:0;font-size:clamp(38px,8vw,60px);letter-spacing:-2px;color:var(--pink)}.brand p{margin:5px;color:var(--muted)}
     .panel{background:#1b121de8;border:1px solid #513047;border-radius:22px;padding:20px;box-shadow:0 18px 60px #0006}
     .join{display:flex;gap:10px;flex-wrap:wrap}.join input{flex:1;min-width:180px;background:#100b12;border:1px solid #63405a;border-radius:12px;padding:14px;color:white;font-size:16px}
@@ -39,9 +39,9 @@
     <div id="signedInArea" class="hidden">
       <div class="accountGrid">
         <div class="subpanel"><h2>Profile</h2><label for="displayName">Display name</label><input class="field" id="displayName" maxlength="40" placeholder="Your name"><label for="username">Username</label><input class="field" id="username" maxlength="20" placeholder="your_username"><button id="saveProfileBtn">Save profile</button><p class="hint" id="profileStatus"></p></div>
-        <div class="subpanel"><h2>Find people</h2><input class="field" id="searchUsername" maxlength="20" placeholder="Search username"><button id="searchBtn">Search</button><div id="searchResults" class="list"></div><h2 style="margin-top:16px">Contact requests</h2><div id="incomingRequests" class="list"></div></div>
+        <div class="subpanel"><h2>Find people</h2><label class="srOnly" for="searchUsername">Search by username</label><input class="field" id="searchUsername" maxlength="20" autocomplete="off" placeholder="Search username"><button id="searchBtn">Search</button><div id="searchResults" class="list"></div><h2 style="margin-top:16px">Contact requests</h2><div id="incomingRequests" class="list"></div></div>
       </div>
-      <div class="subpanel"><h2>Your contacts</h2><div id="contactsList" class="list"></div><h2 style="margin-top:16px">Blocked users</h2><div id="blockedUsers" class="list"></div><h2 style="margin-top:16px">Incoming calls</h2><div id="incomingCalls" class="list"></div><h2 style="margin-top:16px">Recent calls</h2><div id="callHistory" class="list"></div><p class="hint" id="callInviteStatus"></p><div id="chatArea" class="hidden"><h2 id="chatTitle" style="margin-top:18px">Chat</h2><button id="loadOlderMessagesBtn" class="secondary hidden" type="button">Load older messages</button><div id="chatLog" class="chatLog" aria-live="polite"></div><div class="join"><input id="messageInput" placeholder="Write a message" maxlength="4000"><button id="sendMessageBtn">Send</button></div><p class="hint" id="chatStatus"></p></div></div>
+      <div class="subpanel"><h2>Your contacts</h2><div id="contactsList" class="list"></div><h2 style="margin-top:16px">Blocked users</h2><div id="blockedUsers" class="list"></div><h2 style="margin-top:16px">Incoming calls</h2><div id="incomingCalls" class="list"></div><h2 style="margin-top:16px">Recent calls</h2><div id="callHistory" class="list"></div><p class="hint" id="callInviteStatus"></p><div id="chatArea" class="hidden"><h2 id="chatTitle" style="margin-top:18px">Chat</h2><button id="loadOlderMessagesBtn" class="secondary hidden" type="button">Load older messages</button><div id="chatLog" class="chatLog" role="log" aria-live="polite" aria-relevant="additions text"></div><div class="join"><label class="srOnly" for="messageInput">Message</label><input id="messageInput" placeholder="Write a message" maxlength="4000" autocomplete="off"><button id="sendMessageBtn">Send</button></div><p class="hint" id="chatStatus"></p></div></div>
       <div class="rowActions" style="margin-top:12px"><button class="secondary" id="refreshAccountBtn">Refresh</button><button class="danger" id="logoutBtn">Sign out</button><button class="danger" id="deleteAccountBtn">Delete account</button></div>
     </div>
   </section>
@@ -50,8 +50,8 @@
     <button id="joinBtn" class="hidden" type="button">Join accepted call</button>
     <div id="status" role="status">Choose Video call beside an accepted contact. The other person must accept the invitation.</div><p id="callTimer" class="hint" style="text-align:center">00:00</p>
     <div class="videos">
-      <div class="videoBox"><span class="tag">You</span><video id="localVideo" autoplay playsinline muted></video></div>
-      <div class="videoBox"><span class="tag">Other person</span><video id="remoteVideo" autoplay playsinline></video></div>
+      <div class="videoBox"><span class="tag">You</span><video id="localVideo" autoplay playsinline muted aria-label="Your camera preview"></video></div>
+      <div class="videoBox"><span class="tag">Other person</span><video id="remoteVideo" autoplay playsinline aria-label="Your contact’s video"></video></div>
     </div>
     <div class="controls">
       <button class="secondary" id="micBtn" disabled>Mute mic</button>
