@@ -166,26 +166,39 @@ async function handleAuthRequest(req, res, pathname) {
         return true;
       }
 
-      await pool.query(
-        `DELETE FROM otp_challenges
-         WHERE expires_at < NOW() - INTERVAL '1 day'
-            OR consumed_at < NOW() - INTERVAL '1 day'`
-      );
       const code = createOtp();
       const codeHash = await hashOtp(phone, code, process.env.OTP_HASH_SECRET);
-      await pool.query(
-        `INSERT INTO otp_challenges (phone_e164, code_hash, expires_at)
-         VALUES ($1, $2, NOW() + INTERVAL '5 minutes')`,
-        [phone, codeHash]
-      );
+      const client = await pool.connect();
       try {
-        await sendSms(phone, code);
-      } catch (error) {
-        await pool.query(
+        await client.query("BEGIN");
+        // Only one live OTP may be issued per phone, even when requests arrive concurrently.
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 3))",
+          [phone]
+        );
+        await client.query(
+          `DELETE FROM otp_challenges
+           WHERE expires_at < NOW() - INTERVAL '1 day'
+              OR consumed_at < NOW() - INTERVAL '1 day'`
+        );
+        await client.query(
           "UPDATE otp_challenges SET consumed_at = NOW() WHERE phone_e164 = $1 AND consumed_at IS NULL",
           [phone]
         );
+        await client.query(
+          `INSERT INTO otp_challenges (phone_e164, code_hash, expires_at)
+           VALUES ($1, $2, NOW() + INTERVAL '5 minutes')`,
+          [phone, codeHash]
+        );
+        // Keep the per-phone lock until delivery completes so concurrent requests cannot
+        // send an older code after a newer challenge has replaced it.
+        await sendSms(phone, code);
+        await client.query("COMMIT");
+      } catch (error) {
+        try { await client.query("ROLLBACK"); } catch {}
         throw error;
+      } finally {
+        client.release();
       }
       json(res, 200, { ok: true, message: "Verification code sent if the number can receive SMS." });
       return true;
