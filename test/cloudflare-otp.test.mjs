@@ -86,7 +86,7 @@ test('email OTP uses Resend-compatible delivery and creates a verified email ses
  assert.equal(sentPayload.url, 'https://api.resend.com/emails');
  assert.deepEqual(sentPayload.body.to, [email]);
  assert.ok(challengeHash);
- const codeMatch = sentPayload.body.text.match(/code is (\\d{6})/);
+ const codeMatch = sentPayload.body.text.match(/code is (\d{6})/);
  assert.ok(codeMatch);
  const verified = await handleOtpAndLogout(req('/api/auth/verify-email-otp', { email, code: codeMatch[1] }), db, env, sender);
  assert.equal(verified.status, 200);
