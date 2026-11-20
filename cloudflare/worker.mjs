@@ -8,6 +8,7 @@ import { handleCallsRead } from "./calls.mjs";
 import { handleContactMutation } from "./contact-mutations.mjs";
 import { handleModeration } from "./moderation.mjs";
 import { handleOtpAndLogout } from "./otp.mjs";
+import { handleAccountDelete } from "./account.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -37,6 +38,13 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/api/account") {
+      try {
+        return await withDatabase(env, client => handleAccountDelete(request, client));
+      } catch {
+        return unavailable("API");
+      }
+    }
     if (pathname === "/api/auth/request-otp" || pathname === "/api/auth/verify-otp" || pathname === "/api/auth/logout") {
       try {
         return await withDatabase(env, client => handleOtpAndLogout(request, client, env));
