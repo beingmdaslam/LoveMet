@@ -64,8 +64,8 @@ Deployment is intentionally postponed until the application has been implemented
 
 ## Database status
 - [x] Supabase PostgreSQL project connected and active
-- [x] Core tables created and verified: users, otp_challenges, sessions, contact_requests, messages, call_invites
-- [x] RLS enabled on all six tables; no client policies granted (server-side API owns access)
+- [x] Core tables created and verified: users, otp_challenges, sessions, contact_requests, messages, call_invites, user_blocks, user_reports
+- [x] RLS enabled on all eight tables; no client policies granted (server-side API owns access)
 - [ ] Backend hosting DATABASE_URL and OTP_HASH_SECRET configuration
 - [ ] Live database + SMS integration tests
 
