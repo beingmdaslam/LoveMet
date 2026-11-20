@@ -7,7 +7,8 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Room-code signaling server
 - [x] Camera and microphone controls
 - [x] Leave-call control
-- [ ] Authenticated call invitations
+- [x] Authenticated call invitations and accept/decline flow
+- [x] WebSocket signaling restricted to signed-in participants with accepted invitations
 - [ ] TURN server configuration and network fallback
 - [ ] Reconnect handling, call timers, busy/offline states
 - [ ] Camera switching and speaker/audio-route handling
@@ -31,9 +32,10 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Safe handling of attachments (if enabled)
 
 ## Phase 4 — Call management
-- [ ] Incoming call screen and accept/decline
+- [x] Incoming call prompt with accept/decline
 - [ ] Missed, incoming and outgoing call history
-- [ ] Call duration and call status
+- [x] Basic call status and end-call state
+- [ ] Call duration and persistent call history
 - [ ] Push notifications for incoming calls/messages
 
 ## Phase 5 — Android experience
