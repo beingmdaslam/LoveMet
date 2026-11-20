@@ -46,4 +46,4 @@ function publishMessage(message) {
   }
 }
 
-module.exports = { addClient, publishMessage, publishReadReceipt };
+module.exports = { addClient, publishUser, publishMessage, publishReadReceipt };
