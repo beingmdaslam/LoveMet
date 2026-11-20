@@ -71,8 +71,10 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Add non-deployed Wrangler configuration for the existing public assets
 - [x] Add a fail-closed Worker entry for API, health and real-time routes
 - [x] Add automated tests for static routing and unsupported backend routes
-- [ ] Refactor authentication and social APIs to Fetch-native request handlers
-- [ ] Integrate Hyperdrive with Supabase and verify PostgreSQL transaction behavior
+- [x] Add request-scoped Hyperdrive PostgreSQL client adapter with guaranteed connection cleanup
+- [x] Add database-backed Worker readiness check and Fetch-native read-only `/api/auth/me` endpoint
+- [ ] Refactor remaining authentication and social APIs to Fetch-native request handlers
+- [ ] Configure a real Hyperdrive binding to the Supabase database and verify PostgreSQL transactions in the Workers runtime
 - [ ] Move chat and call signaling state into SQLite-backed Durable Objects
 - [ ] Add Workers integration tests and compare security behavior with the Node backend
 - [ ] Complete real-device, network, privacy and operational checks before requesting deployment approval
