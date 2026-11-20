@@ -46,3 +46,25 @@ test('OTP challenge is rolled back when the SMS provider rejects delivery', asyn
  assert.ok(db.calls.some(call => call.sql.includes('INSERT INTO otp_challenges')));
  assert.ok(db.calls.some(call => call.sql === 'ROLLBACK'));
 });
+
+test('OTP verification locks a challenge after five incorrect codes', async () => {
+ const challengeHash = await otpHash('123456'); const db = baseDb(); let attempts = 0;
+ db.query = async (sql, args) => {
+  db.calls.push({ sql, args });
+  if (sql.includes('INSERT INTO api_rate_limits')) return { rowCount: 1, rows: [{ hit_count: 1 }] };
+  if (sql.includes('FROM otp_challenges')) return { rowCount: 1, rows: [{ id: 'otp-lockout', code_hash: challengeHash, attempts }] };
+  if (sql.includes('SET attempts = attempts + 1')) { attempts += 1; return { rowCount: 1, rows: [] }; }
+  return { rowCount: 1, rows: [] };
+ };
+ for (let i = 0; i < 5; i += 1) {
+  const response = await handleOtpAndLogout(req('/api/auth/verify-otp', { phone, code: '654321' }), db, { OTP_HASH_SECRET: secret });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'Code is invalid or expired.');
+ }
+ assert.equal(attempts, 5);
+ const sixth = await handleOtpAndLogout(req('/api/auth/verify-otp', { phone, code: '654321' }), db, { OTP_HASH_SECRET: secret });
+ assert.equal(sixth.status, 400);
+ assert.equal((await sixth.json()).error, 'Code is invalid or expired. Request a new one.');
+ assert.equal(attempts, 5);
+ assert.equal(db.calls.filter(call => call.sql.includes('SET attempts = attempts + 1')).length, 5);
+});
