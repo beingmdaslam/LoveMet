@@ -112,8 +112,8 @@
   function send(type, data) {
     if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, data }));
   }
-  function makePeer() {
-    peer = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+  function makePeer(iceServers) {
+    peer = new RTCPeerConnection({ iceServers: iceServers || [{ urls: "stun:stun.l.google.com:19302" }] });
     localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
     peer.ontrack = event => { remoteVideo.srcObject = event.streams[0]; };
     peer.onicecandidate = event => { if (event.candidate) send("ice", event.candidate); };
@@ -129,7 +129,10 @@
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       localVideo.srcObject = localStream;
-      makePeer();
+      const configResponse = await fetch("/api/calls/config", { credentials: "same-origin", cache: "no-store" });
+      if (!configResponse.ok) throw new Error("Could not load secure call network settings.");
+      const callConfig = await configResponse.json();
+      makePeer(callConfig.iceServers);
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
       socket = new WebSocket(protocol + "//" + location.host + "/signal");
       socket.onopen = () => socket.send(JSON.stringify({ type: "join", roomId }));
