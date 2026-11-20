@@ -28,3 +28,13 @@ Do not use this prototype for sensitive or confidential calls.
 - Run the built-in security tests with `npm test` (Node.js 20+).
 - Copy `.env.example` to `.env` for local configuration. Keep real secrets out of Git.
 - SMS delivery and database-backed login endpoints are not active yet. A real SMS provider and PostgreSQL connection must be configured before phone verification can be used. Do not treat generated OTPs or this foundation as production authentication.
+
+
+## Phone authentication API (backend foundation)
+The server now exposes:
+- `POST /api/auth/request-otp` with JSON `{"phone":"+9665XXXXXXXX"}`
+- `POST /api/auth/verify-otp` with JSON `{"phone":"+9665XXXXXXXX","code":"123456"}`
+- `GET /api/auth/me` to read the signed-in account
+- `POST /api/auth/logout` to revoke the current session
+
+To enable it, configure PostgreSQL, run `psql "$DATABASE_URL" -f db/schema.sql`, set a strong `OTP_HASH_SECRET` (at least 32 characters), and configure Twilio credentials in the environment. Install dependencies with `npm install`. The API returns a service-unavailable response when the database is not configured; it never returns OTP codes in API responses. SMS costs and provider account approval may apply. Use HTTPS in any shared or production environment.
