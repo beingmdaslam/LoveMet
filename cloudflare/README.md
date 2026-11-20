@@ -20,7 +20,7 @@ The repository now includes:
 - Explicit Worker-first routing for `/api`, `/healthz`, `/chat` and `/signal`.
 - A request-scoped `pg` client adapter that reads the Hyperdrive connection string from the binding and always closes the client; Hyperdrive owns the underlying connection pool.
 - `/healthz` runs `SELECT 1` through Hyperdrive and returns 503 if the binding/database is unavailable.
-- A Fetch-native, read-only `/api/auth/me` endpoint validates the existing opaque session cookie against the Supabase `sessions` table and returns only public profile fields.
+- Fetch-native `/api/auth/me` and `/api/profile` handlers validate the existing opaque session cookie against the Supabase `sessions` table. Profile updates retain same-origin protection, the 8 KiB body limit, field validation, unique-username conflict handling and public-field-only responses.
 - All other API routes and both WebSocket routes still return a deliberate HTTP 503 until their complete Fetch-native and Durable Object implementations are ready. This prevents a preview Worker from falsely appearing healthy or accepting unauthenticated/unsupported traffic.
 - Automated tests covering static asset delegation, missing bindings and fail-closed API/WebSocket behavior.
 
