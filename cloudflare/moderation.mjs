@@ -1,4 +1,5 @@
 import { getSessionUser } from './auth.mjs';
+import { publishUserEvent } from './user-events.mjs';
 const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const UUID = /^[0-9a-f-]{36}$/i;
 function json(status, body) { return new Response(JSON.stringify(body), { status, headers: HEADERS }); }
@@ -8,7 +9,7 @@ async function readJson(request) {
  try { while (true) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength; if (size > 8192) { await reader.cancel(); throw Object.assign(new Error('Request too large.'), { status: 413 }); } chunks.push(value); } } finally { reader.releaseLock(); }
  try { const raw = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { raw.set(chunk, offset); offset += chunk.byteLength; } const body = JSON.parse(new TextDecoder().decode(raw) || '{}'); if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(); return body; } catch { throw Object.assign(new Error('Invalid JSON body.'), { status: 400 }); }
 }
-export async function handleModeration(request, client) {
+export async function handleModeration(request, client, env) {
  if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed.' }), { status: 405, headers: { ...HEADERS, Allow: 'POST' } });
  if (!sameOrigin(request)) return json(403, { error: 'Cross-origin request blocked.' });
  const user = await getSessionUser(request, client); if (!user) return json(401, { error: 'Sign in to continue.' });
@@ -23,12 +24,16 @@ export async function handleModeration(request, client) {
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))", [user.id, targetId]);
     await client.query('INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [user.id, targetId]);
     await client.query("UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW() WHERE status IN ('ringing','accepted') AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))", [user.id, targetId]);
-    await client.query('COMMIT'); return json(200, { ok: true });
+    await client.query('COMMIT');
+    await Promise.all([user.id, targetId].map(userId => publishUserEvent(env, userId, { type: 'contact-update' })));
+    await Promise.all([user.id, targetId].map(userId => publishUserEvent(env, userId, { type: 'call-update' })));
+    return json(200, { ok: true });
    } catch (error) { try { await client.query('ROLLBACK'); } catch {} throw error; }
   }
   if (pathname === '/api/contacts/unblock') {
    if (!UUID.test(targetId)) return json(400, { error: 'Provide a valid user to unblock.' });
    const result = await client.query('DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2 RETURNING blocked_id', [user.id, targetId]);
+   if (result.rowCount) await Promise.all([user.id, targetId].map(userId => publishUserEvent(env, userId, { type: 'contact-update' })));
    return json(200, { ok: true, unblocked: result.rowCount > 0 });
   }
   if (pathname === '/api/users/report') {
