@@ -7,8 +7,7 @@ function send(ws, value) { try { if (ws.readyState === 1) ws.send(JSON.stringify
 export async function publishUserEvent(env, userId, payload) {
  if (!env.USER_EVENTS || !userId || !payload || typeof payload.type !== 'string') return;
  const id = env.USER_EVENTS.idFromName(String(userId));
- const response = await env.USER_EVENTS.get(id).fetch('https://internal.lovemet/publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
- if (!response.ok) throw new Error('Live event delivery failed.');
+ try { await env.USER_EVENTS.get(id).fetch('https://internal.lovemet/publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch { /* HTTP polling remains the fallback if realtime delivery is unavailable. */ }
 }
 export class UserEvents {
  constructor(ctx, env) { this.ctx = ctx; this.env = env; }
