@@ -110,3 +110,14 @@ test('a delayed close event from an old socket cannot overwrite a rejoined parti
  assert.equal(member.connected, true);
  assert.equal(member.socketId, newSocket.deserializeAttachment().socketId);
 });
+
+test('call room limits signaling frames per socket without blocking normal ICE traffic', async () => {
+ const { room, sockets } = setup();
+ const peer = socket('u1'); sockets.push(peer);
+ await room.webSocketMessage(peer, JSON.stringify({ type: 'join', roomId }));
+ for (let i = 0; i < 300; i++) await room.webSocketMessage(peer, JSON.stringify({ type: 'ice', data: { candidate: 'candidate-' + i } }));
+ assert.equal(peer.closed, null);
+ await room.webSocketMessage(peer, JSON.stringify({ type: 'ice', data: { candidate: 'overflow' } }));
+ assert.equal(peer.closed.code, 1008);
+ assert.equal(peer.closed.reason, 'Signaling rate limit exceeded');
+});
