@@ -4,7 +4,7 @@ import { CallRooms } from '../cloudflare/call-rooms.mjs';
 class Socket { constructor(attachment) { this.attachment = attachment; this.readyState = 1; this.sent = []; this.closed = null; } serializeAttachment(value) { this.attachment = structuredClone(value); } deserializeAttachment() { return this.attachment && structuredClone(this.attachment); } send(value) { this.sent.push(JSON.parse(value)); } close(code, reason) { this.closed = { code, reason }; this.readyState = 3; } }
 function setup() {
  const sockets = []; const values = new Map(); let alarm = null;
- const ctx = { getWebSockets: () => sockets.filter(socket => socket.readyState === 1), acceptWebSocket(socket) { sockets.push(socket); }, storage: { async get(key) { return values.get(key); }, async put(key, value) { values.set(key, value); }, async delete(key) { values.delete(key); }, async setAlarm(value) { alarm = value; }, async list({ prefix }) { return new Map([...values.entries()].filter(([key]) => key.startsWith(prefix))); } } };
+ let gate = Promise.resolve(); const ctx = { blockConcurrencyWhile(callback) { const next = gate.then(callback); gate = next.catch(() => {}); return next; }, getWebSockets: () => sockets.filter(socket => socket.readyState === 1), acceptWebSocket(socket) { sockets.push(socket); }, storage: { async get(key) { return values.get(key); }, async put(key, value) { values.set(key, value); }, async delete(key) { values.delete(key); }, async setAlarm(value) { alarm = value; }, async list({ prefix }) { return new Map([...values.entries()].filter(([key]) => key.startsWith(prefix))); } } };
  const room = new CallRooms(ctx, {}); room.authorize = async (attachment, roomId) => ({ rowCount: attachment.allow === false ? 0 : 1, rows: [{ caller_id: 'u1', callee_id: 'u2' }] });
  return { room, ctx, sockets, values, get alarm() { return alarm; } };
 }
@@ -59,4 +59,21 @@ test('call room alarm tolerates two transient authorization failures before clos
  assert.equal(peer.closed, null);
  await room.alarm();
  assert.equal(peer.closed.code, 1011);
+});
+
+test('concurrent room joins cannot admit duplicate accounts or a third participant', async () => {
+ const { room, sockets } = setup();
+ const a1 = socket('u1'); const a2 = socket('u1'); const b = socket('u2'); const c = socket('u3');
+ sockets.push(a1, a2, b, c);
+ await Promise.all([
+  room.webSocketMessage(a1, JSON.stringify({ type: 'join', roomId })),
+  room.webSocketMessage(a2, JSON.stringify({ type: 'join', roomId })),
+  room.webSocketMessage(b, JSON.stringify({ type: 'join', roomId })),
+  room.webSocketMessage(c, JSON.stringify({ type: 'join', roomId }))
+ ]);
+ const joined = sockets.filter(ws => ws.deserializeAttachment()?.joined);
+ assert.equal(joined.length, 2);
+ assert.equal(joined.filter(ws => ws.deserializeAttachment().userId === 'u1').length, 1);
+ assert.ok(a2.sent.some(message => message.type === 'error') || a1.sent.some(message => message.type === 'error'));
+ assert.ok(c.sent.some(message => message.type === 'error'));
 });
