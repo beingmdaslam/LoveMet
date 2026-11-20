@@ -33,6 +33,11 @@ function getClientIp(req) {
 
 function allowRequest(key, max, windowMs) {
   const now = Date.now();
+  if (requestLimits.size > 10000) {
+    for (const [storedKey, entry] of requestLimits) {
+      if (now >= entry.resetAt) requestLimits.delete(storedKey);
+    }
+  }
   const entry = requestLimits.get(key);
   if (!entry || now >= entry.resetAt) {
     requestLimits.set(key, { count: 1, resetAt: now + windowMs });
@@ -231,6 +236,41 @@ async function handleAuthRequest(req, res, pathname) {
     if (pathname === "/api/auth/me" && req.method === "GET") {
       const user = await currentUser(req);
       json(res, user ? 200 : 401, user ? { user } : { error: "Not signed in." });
+      return true;
+    }
+
+    if (pathname === "/api/profile" && req.method === "PATCH") {
+      const user = await currentUser(req);
+      if (!user) {
+        json(res, 401, { error: "Sign in to edit your profile." });
+        return true;
+      }
+      const body = await readJson(req);
+      const displayName = body.displayName === undefined ? user.display_name : String(body.displayName).trim();
+      const username = body.username === undefined ? user.username : String(body.username).trim().toLowerCase();
+      if (displayName !== null && displayName !== undefined && (displayName.length < 1 || displayName.length > 40)) {
+        json(res, 400, { error: "Display name must be 1–40 characters." });
+        return true;
+      }
+      if (username !== null && username !== undefined && !/^[a-z0-9_]{3,20}$/.test(username)) {
+        json(res, 400, { error: "Username must be 3–20 characters using lowercase letters, numbers or underscores." });
+        return true;
+      }
+      try {
+        const updated = await pool.query(
+          `UPDATE users SET display_name = $2, username = $3, updated_at = NOW()
+           WHERE id = $1
+           RETURNING id, phone_e164, display_name, username, avatar_url`,
+          [user.id, displayName || null, username || null]
+        );
+        json(res, 200, { user: updated.rows[0] });
+      } catch (error) {
+        if (error.code === "23505") {
+          json(res, 409, { error: "That username is already in use." });
+          return true;
+        }
+        throw error;
+      }
       return true;
     }
 
