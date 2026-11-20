@@ -173,7 +173,7 @@
   }
   function cleanup(notify = true) {
     if (notify) send("hangup");
-    if (activeCallInvite) { const inviteId=activeCallInvite; activeCallInvite=null; fetch("/api/calls/respond",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({inviteId,action:"end"})}).catch(()=>{}); window.dispatchEvent(new Event("lovemet:call-ended")); }
+    if (activeCallInvite) { const inviteId=activeCallInvite; activeCallInvite=null; fetch("/api/calls/respond",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({inviteId,action:"end"})}).catch(()=>{}).finally(()=>window.dispatchEvent(new Event("lovemet:call-ended"))); }
     if (socket) { socket.close(); socket = null; }
     if (peer) { peer.close(); peer = null; }
     if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
