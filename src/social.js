@@ -193,7 +193,7 @@ async function handleSocialRequest(req, res, pathname) {
     if (pathname === "/api/calls/invites" && req.method === "GET") {
       await pool.query(
         `UPDATE call_invites SET status = 'missed', updated_at = NOW(), ended_at = NOW()
-         WHERE callee_id = $1 AND status = 'ringing' AND expires_at <= NOW()`,
+         WHERE (callee_id = $1 OR caller_id = $1) AND status = 'ringing' AND expires_at <= NOW()`,
         [user.id]
       );
       const result = await pool.query(
@@ -204,7 +204,7 @@ async function handleSocialRequest(req, res, pathname) {
          JOIN users caller ON caller.id = c.caller_id
          JOIN users callee ON callee.id = c.callee_id
          WHERE (c.callee_id = $1 AND c.status = 'ringing' AND c.expires_at > NOW())
-            OR (c.caller_id = $1 AND c.status IN ('ringing','accepted') AND c.expires_at > NOW())
+            OR (c.caller_id = $1 AND c.created_at > NOW() - INTERVAL '1 day')
          ORDER BY c.created_at DESC LIMIT 20`,
         [user.id]
       );
