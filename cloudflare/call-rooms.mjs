@@ -1,6 +1,7 @@
 import { withDatabase } from './database.mjs';
 const UUID = /^[0-9a-f-]{36}$/i;
 const MAX_SIGNAL_BYTES = 64 * 1024;
+const MAX_SIGNAL_MESSAGES_PER_MINUTE = 300;
 function cookieToken(request) { for (const part of String(request.headers.get('cookie') || '').split(';')) { const i = part.indexOf('='); if (i < 0 || part.slice(0, i).trim() !== 'lovemet_session') continue; try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return ''; } } return ''; }
 async function tokenHash(token) { const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)); return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join(''); }
 function send(ws, value) { try { if (ws.readyState === 1) ws.send(JSON.stringify(value)); } catch {} }
@@ -30,6 +31,11 @@ export class CallRooms {
   const attachment = ws.deserializeAttachment(); if (!attachment) { ws.close(1008, 'Missing session attachment'); return; }
   const size = typeof raw === 'string' ? new TextEncoder().encode(raw).byteLength : raw.byteLength;
   if (size > MAX_SIGNAL_BYTES) { ws.close(1009, 'Signaling message too large'); return; }
+  const now = Date.now();
+  if (!attachment.rateWindowStart || now - attachment.rateWindowStart >= 60000) { attachment.rateWindowStart = now; attachment.messageCount = 0; }
+  attachment.messageCount = Number(attachment.messageCount || 0) + 1;
+  if (attachment.messageCount > MAX_SIGNAL_MESSAGES_PER_MINUTE) { ws.close(1008, 'Signaling rate limit exceeded'); return; }
+  ws.serializeAttachment(attachment);
   let message; try { message = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { send(ws, { type: 'error', message: 'Invalid message format.' }); return; }
   if (message.type === 'join') {
    if (attachment.joined) { send(ws, { type: 'error', message: 'You are already in a room.' }); return; }
