@@ -18,6 +18,8 @@ test("creates six digit OTPs and verifies only matching code", async () => {
   const hash = await hashOtp("+966501234567", otp, secret);
   assert.equal(await verifyOtp("+966501234567", otp, hash, secret), true);
   assert.equal(await verifyOtp("+966501234567", "000000", hash, secret), false);
+  await assert.rejects(() => hashOtp("+966501234567", "12x456", secret));
+  await assert.rejects(() => hashOtp("+966501234567", "12345", secret));
 });
 
 test("session tokens are random and stored as one-way hashes", () => {
