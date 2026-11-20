@@ -4,7 +4,25 @@ import { CallRooms } from '../cloudflare/call-rooms.mjs';
 class Socket { constructor(attachment) { this.attachment = attachment; this.readyState = 1; this.sent = []; this.closed = null; } serializeAttachment(value) { this.attachment = structuredClone(value); } deserializeAttachment() { return this.attachment && structuredClone(this.attachment); } send(value) { this.sent.push(JSON.parse(value)); } close(code, reason) { this.closed = { code, reason }; this.readyState = 3; } }
 function setup() {
  const sockets = []; const values = new Map(); let alarm = null;
- let gate = Promise.resolve(); const ctx = { blockConcurrencyWhile(callback) { const next = gate.then(callback); gate = next.catch(() => {}); return next; }, getWebSockets: () => sockets.filter(socket => socket.readyState === 1), acceptWebSocket(socket) { sockets.push(socket); }, storage: { async get(key) { return values.get(key); }, async put(key, value) { values.set(key, value); }, async delete(key) { values.delete(key); }, async setAlarm(value) { alarm = value; }, async list({ prefix }) { return new Map([...values.entries()].filter(([key]) => key.startsWith(prefix))); } } };
+ let transactionGate = Promise.resolve();
+ const storage = {
+  async get(key) { return values.get(key); },
+  async put(key, value) { values.set(key, structuredClone(value)); },
+  async delete(key) { values.delete(key); },
+  async setAlarm(value) { alarm = value; },
+  async list({ prefix }) { return new Map([...values.entries()].filter(([key]) => key.startsWith(prefix))); },
+  transaction(callback) {
+   const run = transactionGate.then(() => callback({
+    async get(key) { return values.get(key); },
+    async put(key, value) { values.set(key, structuredClone(value)); },
+    async delete(key) { values.delete(key); },
+    async list({ prefix }) { return new Map([...values.entries()].filter(([key]) => key.startsWith(prefix))); }
+   }));
+   transactionGate = run.catch(() => {});
+   return run;
+  }
+ };
+ const ctx = { getWebSockets: () => sockets.filter(socket => socket.readyState === 1), acceptWebSocket(socket) { sockets.push(socket); }, storage };
  const room = new CallRooms(ctx, {}); room.authorize = async (attachment, roomId) => ({ rowCount: attachment.allow === false ? 0 : 1, rows: [{ caller_id: 'u1', callee_id: 'u2' }] });
  return { room, ctx, sockets, values, get alarm() { return alarm; } };
 }
