@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#100b12">
+  <link rel="manifest" href="/manifest.webmanifest">
   <title>LoveMet — Video Calling</title>
   <style>
     :root{color-scheme:dark;--bg:#100b12;--panel:#1b121d;--pink:#ff4f87;--muted:#b9aab6}
@@ -129,6 +130,9 @@
     cameraBtn.textContent = cameraOn ? "Turn camera off" : "Turn camera on";
   });
   window.addEventListener("beforeunload", () => cleanup());
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
 })();
 </script>
 </body>
