@@ -230,19 +230,44 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 400, { error: "You cannot add yourself." });
         return true;
       }
+      const client = await pool.connect();
       try {
-        const created = await pool.query(
+        await client.query("BEGIN");
+        // Serialize requests for this unordered account pair, including opposite-direction requests.
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
+          [user.id, target.rows[0].id]
+        );
+        const existing = await client.query(
+          `SELECT id, status FROM contact_requests
+           WHERE ((requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1))
+             AND status IN ('pending','accepted')
+           LIMIT 1`,
+          [user.id, target.rows[0].id]
+        );
+        if (existing.rowCount) {
+          await client.query("ROLLBACK");
+          json(res, 409, { error: existing.rows[0].status === "accepted"
+            ? "These accounts are already contacts."
+            : "A pending request already exists between these accounts." });
+          return true;
+        }
+        const created = await client.query(
           `INSERT INTO contact_requests (requester_id, recipient_id)
            VALUES ($1, $2) RETURNING id, status, created_at`,
           [user.id, target.rows[0].id]
         );
+        await client.query("COMMIT");
         json(res, 201, { request: created.rows[0] });
       } catch (error) {
+        try { await client.query("ROLLBACK"); } catch {}
         if (error.code === "23505") {
           json(res, 409, { error: "A request already exists between these accounts." });
           return true;
         }
         throw error;
+      } finally {
+        client.release();
       }
       return true;
     }
