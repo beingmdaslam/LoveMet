@@ -67,9 +67,11 @@ export async function handleOtpAndLogout(request, client, env, fetcher = fetch) 
   }
   const token = readCookie(request, 'lovemet_session');
   if (token) {
-   const result = await client.query("WITH revoked AS (UPDATE sessions SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL RETURNING user_id), ended AS (UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW() WHERE status = 'accepted' AND (caller_id IN (SELECT user_id FROM revoked) OR callee_id IN (SELECT user_id FROM revoked)) RETURNING caller_id, callee_id) SELECT caller_id, callee_id FROM ended", [hashSession(token)]);
-   const participants = new Set(result.rows.flatMap(row => [row.caller_id, row.callee_id]));
+   const result = await client.query("WITH revoked AS (UPDATE sessions SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL RETURNING user_id), ended AS (UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW() WHERE status = 'accepted' AND (caller_id IN (SELECT user_id FROM revoked) OR callee_id IN (SELECT user_id FROM revoked)) RETURNING caller_id, callee_id) SELECT (SELECT user_id FROM revoked LIMIT 1) AS revoked_user_id, caller_id, callee_id FROM ended UNION ALL SELECT user_id, NULL::uuid, NULL::uuid FROM revoked WHERE NOT EXISTS (SELECT 1 FROM ended)", [hashSession(token)]);
+   const participants = new Set(result.rows.flatMap(row => [row.revoked_user_id, row.caller_id, row.callee_id]).filter(Boolean));
    await Promise.all([...participants].map(userId => publishUserEvent(env, userId, { type: 'call-update' })));
+   const revokedUserId = result.rows.find(row => row.revoked_user_id)?.revoked_user_id;
+   if (revokedUserId) await publishUserEvent(env, revokedUserId, { type: 'session-ended' });
   }
   return json(200, { ok: true }, { 'Set-Cookie': sessionCookie('', request, 0) });
  } catch (error) { const status = error.status || 500; if (status >= 500) console.error('LoveMet Worker auth error:', error.message); return json(status, { error: status === 500 ? 'Authentication service error.' : error.message }); }
