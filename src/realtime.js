@@ -1,0 +1,29 @@
+const WebSocket = require("ws");
+
+const clients = new Map();
+
+function addClient(userId, socket) {
+  let sockets = clients.get(userId);
+  if (!sockets) {
+    sockets = new Set();
+    clients.set(userId, sockets);
+  }
+  sockets.add(socket);
+  socket.once("close", () => {
+    sockets.delete(socket);
+    if (!sockets.size) clients.delete(userId);
+  });
+}
+
+function publishMessage(message) {
+  const payload = JSON.stringify({ type: "message", message });
+  for (const userId of [message.sender_id, message.recipient_id]) {
+    const sockets = clients.get(userId);
+    if (!sockets) continue;
+    for (const socket of sockets) {
+      if (socket.readyState === WebSocket.OPEN) socket.send(payload);
+    }
+  }
+}
+
+module.exports = { addClient, publishMessage };
