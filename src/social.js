@@ -258,6 +258,7 @@ async function handleSocialRequest(req, res, pathname) {
       const result = await pool.query(
         `UPDATE contact_requests SET status = $3, updated_at = NOW()
          WHERE id = $1 AND recipient_id = $2 AND status = 'pending'
+           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = contact_requests.requester_id) OR (b.blocker_id = contact_requests.requester_id AND b.blocked_id = $2))
          RETURNING id, status`,
         [requestId, user.id, action === "accept" ? "accepted" : "declined"]
       );
