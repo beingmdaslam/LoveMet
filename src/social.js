@@ -51,6 +51,13 @@ async function readJson(req) {
   }
 }
 
+async function lockCallParticipants(client, userA, userB) {
+  // Stable lock ordering serializes call setup across different contacts without deadlocks.
+  for (const id of [String(userA), String(userB)].sort()) {
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 4))", [id]);
+  }
+}
+
 async function isContact(userA, userB) {
   const result = await pool.query(
     `SELECT 1 FROM contact_requests
@@ -477,6 +484,7 @@ async function handleSocialRequest(req, res, pathname) {
           "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
           [user.id, contactId]
         );
+        await lockCallParticipants(client, user.id, contactId);
         const contact = await client.query(
           `SELECT 1 FROM contact_requests
            WHERE status = 'accepted'
@@ -502,8 +510,8 @@ async function handleSocialRequest(req, res, pathname) {
         await client.query(
           `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
            WHERE status IN ('ringing','accepted') AND expires_at <= NOW()
-             AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
-          [user.id, contactId]
+             AND (caller_id = ANY($1::uuid[]) OR callee_id = ANY($1::uuid[]))`,
+          [[user.id, contactId]]
         );
         const recentCalls = await client.query(
           `SELECT COUNT(*)::INTEGER AS total FROM call_invites
@@ -518,9 +526,9 @@ async function handleSocialRequest(req, res, pathname) {
         const active = await client.query(
           `SELECT id FROM call_invites
            WHERE status IN ('ringing','accepted') AND expires_at > NOW()
-             AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))
+             AND (caller_id = ANY($1::uuid[]) OR callee_id = ANY($1::uuid[]))
            LIMIT 1`,
-          [user.id, contactId]
+          [[user.id, contactId]]
         );
         if (active.rowCount) {
           await client.query("ROLLBACK");
@@ -577,6 +585,19 @@ async function handleSocialRequest(req, res, pathname) {
             "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
             [callerId, user.id]
           );
+          await lockCallParticipants(client, callerId, user.id);
+          const otherActiveCall = await client.query(
+            `SELECT id FROM call_invites
+             WHERE id <> $1 AND status IN ('ringing','accepted') AND expires_at > NOW()
+               AND (caller_id = ANY($2::uuid[]) OR callee_id = ANY($2::uuid[]))
+             LIMIT 1`,
+            [inviteId, [callerId, user.id]]
+          );
+          if (otherActiveCall.rowCount) {
+            await client.query("ROLLBACK");
+            json(res, 409, { error: "You or this contact is already busy with another call." });
+            return true;
+          }
           result = await client.query(
             `UPDATE call_invites SET status = 'accepted', updated_at = NOW(),
                     expires_at = NOW() + INTERVAL '4 hours', started_at = NOW()
