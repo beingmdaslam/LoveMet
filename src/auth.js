@@ -293,7 +293,7 @@ async function handleAuthRequest(req, res, pathname) {
         const updated = await pool.query(
           `UPDATE users SET display_name = $2, username = $3, updated_at = NOW()
            WHERE id = $1
-           RETURNING id, phone_e164, display_name, username, avatar_url`,
+           RETURNING id, display_name, username, avatar_url`,
           [user.id, displayName || null, username || null]
         );
         json(res, 200, { user: updated.rows[0] });
