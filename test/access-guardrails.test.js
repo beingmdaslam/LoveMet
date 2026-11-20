@@ -277,7 +277,7 @@ test("OTP rate limits are database-backed, atomic, and store only hashed identif
   const schema = fs.readFileSync(path.join(root, "db/schema.sql"), "utf8");
   const migration = fs.readFileSync(path.join(root, "db/migrations/20261120_add_shared_api_rate_limits.sql"), "utf8");
   assert.match(auth, /async function allowRequest\(key, max, windowMs\)/);
-  assert.match(auth, /createHash\("sha256"\)\.update\(String\(key\)\)\.digest\("hex"\)/);
+  assert.match(auth, /createHmac\("sha256", pepper\)\.update\(String\(key\)\)\.digest\("hex"\)/);
   assert.match(auth, /ON CONFLICT \(key_hash\) DO UPDATE SET/);
   assert.match(auth, /Number\(result\.rows\[0\]\.hit_count\) <= max/);
   assert.match(auth, /await allowRequest\(/);
