@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#100b12">
+  <title>LoveMet — Privacy Notice</title>
+  <style>
+    body{margin:0;background:#100b12;color:#f8edf4;font:16px/1.7 system-ui,sans-serif}
+    main{max-width:820px;margin:auto;padding:28px 18px 56px}h1,h2{color:#ff4f87}a{color:#ff8eb1}
+    .notice{padding:14px;border:1px solid #80516c;border-radius:12px;background:#211624}
+  </style>
+</head>
+<body><main>
+  <p><a href="/">← Back to LoveMet</a></p>
+  <h1>Privacy Notice</h1>
+  <p>Last updated: 20 November 2026</p>
+  <p class="notice"><strong>Pre-launch notice:</strong> The app operator must replace the contact placeholder below and review this notice for the final hosting, SMS, and TURN providers before public launch. This page describes the current LoveMet application design, not a legal certification.</p>
+  <h2>Information we process</h2>
+  <ul>
+    <li>Account information: phone number used for verification, username, display name, and optional profile details.</li>
+    <li>Contacts and communications: contact requests and text messages exchanged through the app.</li>
+    <li>Call information: invitation status, call participants, timestamps, and available call duration metadata.</li>
+    <li>Security information: hashed session tokens, OTP challenge hashes, expiry times, and limited abuse-prevention records.</li>
+    <li>Device permissions: camera and microphone are accessed only after you start or accept a video call and grant browser permission.</li>
+  </ul>
+  <h2>How information is used</h2>
+  <p>Information is used to create and secure accounts, deliver OTP verification, connect accepted contacts, route messages and call signaling, show call history, and protect the service from abuse.</p>
+  <h2>Messages and video calls</h2>
+  <p>Text messages and account records are stored in the application database. Video and audio are transmitted using WebRTC. The current app does not provide end-to-end encryption and does not include a call-recording feature. Depending on network conditions, media may travel directly between devices or through a configured TURN relay. Do not use the service to transmit information that requires a level of confidentiality the current app cannot guarantee.</p>
+  <h2>Service providers</h2>
+  <p>Phone verification may be processed by the configured SMS provider (currently designed for Twilio). Account, contact, and message records are stored in the configured PostgreSQL/Supabase database. Hosting and any configured TURN relay provider may process connection and technical metadata. Final provider names and links must be confirmed before launch.</p>
+  <h2>Retention and security</h2>
+  <p>Account, contact, and message data may remain in the database while the account is active. Call metadata is retained as part of call history. The app uses session cookies, hashed session tokens, access checks, and database row-level security. No online service can guarantee absolute security. Account deletion and a complete retention schedule must be finalized before public launch.</p>
+  <h2>Your choices</h2>
+  <p>You can sign out to revoke your current session. Browser camera and microphone permissions can be changed in your device or browser settings. A verified account-data access/deletion request process must be published by the operator before public launch.</p>
+  <h2>Children</h2>
+  <p>LoveMet is not designed to collect information from children. The operator must define and publish the minimum permitted age and age-verification approach before launch.</p>
+  <h2>Contact</h2>
+  <p>Privacy questions: <strong>[Add the app operator's privacy contact email before launch]</strong>.</p>
+</main></body></html>
