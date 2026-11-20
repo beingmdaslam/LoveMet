@@ -131,3 +131,14 @@ test("live chat socket count is capped per account", () => {
   assert.match(realtime, /sockets\.size >= 5/);
   assert.match(realtime, /return false/);
 });
+
+
+test("call invitation creation and responses notify both participants", () => {
+  const social = fs.readFileSync(path.join(root, "src/social.js"), "utf8");
+  const inviteRoute = social.slice(social.indexOf('pathname === "/api/calls/invite"'), social.indexOf('pathname === "/api/calls/respond"'));
+  const respondRoute = social.slice(social.indexOf('pathname === "/api/calls/respond"'), social.indexOf('pathname === "/api/messages"'));
+  assert.match(inviteRoute, /publishUser\(contactId, \{ type: "call-update" \}\)/);
+  assert.match(inviteRoute, /publishUser\(user\.id, \{ type: "call-update" \}\)/);
+  assert.match(respondRoute, /publishUser\(result\.rows\[0\]\.caller_id/);
+  assert.match(respondRoute, /publishUser\(result\.rows\[0\]\.callee_id/);
+});
