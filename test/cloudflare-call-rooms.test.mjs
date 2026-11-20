@@ -27,7 +27,7 @@ test('call room rejects an invitation when the database authorization check fail
 test('call room preserves initiator identity through the 25-second reconnect grace period', async () => {
  const { room, ctx, sockets, values } = setup(); const a = socket('u1'); const b = socket('u2'); sockets.push(a, b);
  await room.webSocketMessage(a, JSON.stringify({ type: 'join', roomId })); await room.webSocketMessage(b, JSON.stringify({ type: 'join', roomId }));
- await room.webSocketClose(a, 1006, 'network lost');
+ a.readyState = 3; await room.webSocketClose(a, 1006, 'network lost');
  assert.ok(b.sent.some(message => message.type === 'peer-disconnected'));
  const key = 'reconnect:' + roomId + ':u1'; assert.ok(values.has(key));
  const rejoined = socket('u1'); sockets.push(rejoined); await room.webSocketMessage(rejoined, JSON.stringify({ type: 'join', roomId }));
