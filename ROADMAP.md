@@ -12,7 +12,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Short-lived per-user TURN credential delivery support
 - [ ] TURN provider setup and real-network relay fallback testing
 - [x] In-call elapsed timer
-- [ ] Reconnect handling and offline states
+- [x] Short network interruption recovery with a 25-second signaling rejoin grace period and ICE restart
 - [x] Prevent overlapping active/ringing calls with participant-level transaction locks
 - [x] Front/rear camera switching
 - [ ] Speaker/audio-route handling
