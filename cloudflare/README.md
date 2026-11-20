@@ -11,6 +11,18 @@ Deployment is intentionally deferred. This document records the chosen target ar
 - **Supabase PostgreSQL** remains the source of truth for accounts, sessions, contacts, messages, reports, call invitations and rate limits.
 - **R2** may be used later for user-uploaded avatars and message attachments, after upload validation and authorization are implemented.
 
+## Initial Worker scaffold (not deployed)
+
+The repository now includes:
+
+- Root `wrangler.jsonc` pointing at `cloudflare/worker.mjs` and the existing `public/` directory.
+- A Worker entry that delegates non-API requests to the `ASSETS` binding.
+- Explicit Worker-first routing for `/api`, `/healthz`, `/chat` and `/signal`.
+- A deliberate HTTP 503 response for those backend routes until their Fetch-native and Durable Object implementations are ready. This prevents a preview Worker from falsely appearing healthy or accepting unauthenticated/unsupported traffic.
+- Automated tests covering static asset delegation, missing bindings and fail-closed API/WebSocket behavior.
+
+This is a local configuration/code scaffold only. It has not been deployed, and it does not replace the current Node server. There is intentionally no deploy script or production routing change.
+
 ## Important migration constraints
 
 The current production backend is a Node HTTP server (`server.js`) using `http.createServer`, `ws`, filesystem static serving and a module-level `pg.Pool`. It cannot be deployed unchanged as a Workers entry point. Cloudflare Workers use the Fetch API and WebSocketPair/Durable Objects rather than hosting a long-running Node HTTP server.
