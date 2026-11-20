@@ -88,6 +88,31 @@ CREATE INDEX IF NOT EXISTS call_invites_caller_status_idx
 ALTER TABLE call_invites ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE call_invites FROM anon, authenticated;
 
+-- User safety controls: blocks prevent contact, messaging and calls; reports are private to the service.
+CREATE TABLE IF NOT EXISTS user_blocks (
+  blocker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (blocker_id, blocked_id),
+  CHECK (blocker_id <> blocked_id)
+);
+CREATE INDEX IF NOT EXISTS user_blocks_blocked_idx ON user_blocks (blocked_id);
+
+CREATE TABLE IF NOT EXISTS user_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reported_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL CHECK (reason IN ('harassment','spam','impersonation','inappropriate','other')),
+  details TEXT NOT NULL CHECK (char_length(details) BETWEEN 1 AND 1000),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','reviewed','dismissed','actioned')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (reporter_id <> reported_id)
+);
+CREATE INDEX IF NOT EXISTS user_reports_reported_created_idx ON user_reports (reported_id, created_at DESC);
+ALTER TABLE user_blocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_reports ENABLE ROW LEVEL SECURITY;
+REVOKE ALL PRIVILEGES ON TABLE user_blocks, user_reports FROM anon, authenticated;
+
 -- Supabase hardening: app data is accessed only by the trusted Node backend.
 -- Do not add public client policies for these private account tables.
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
