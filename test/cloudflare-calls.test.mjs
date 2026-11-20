@@ -18,6 +18,12 @@ test('call history returns only calls involving the authenticated account', asyn
  assert.equal(response.status, 200); assert.deepEqual(await response.json(), { calls: [{ id: 'c1', status: 'ended', contact_id: 'u2', outgoing: true, duration_seconds: 45 }] });
  assert.deepEqual(client.calls[1].args, ['u1']); assert.ok(client.calls[1].sql.includes('LIMIT 30'));
 });
+test('call status rejects malformed UUIDs before querying invitation records', async () => {
+ const client = db();
+ const response = await handleCallsRead(new Request('https://lovemet.example/api/calls/status?inviteId=zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz', { headers: { cookie: 'lovemet_session=' + token } }), client, {});
+ assert.equal(response.status, 400);
+ assert.equal(client.calls.some(call => call.sql.includes('FROM call_invites')), false);
+});
 test('call endpoints reject unauthenticated requests', async () => {
  const response = await handleCallsRead(new Request('https://lovemet.example/api/calls/history'), { async query() { return { rowCount: 0, rows: [] }; } }, {});
  assert.equal(response.status, 401);
