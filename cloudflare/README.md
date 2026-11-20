@@ -18,7 +18,10 @@ The repository now includes:
 - Root `wrangler.jsonc` pointing at `cloudflare/worker.mjs` and the existing `public/` directory.
 - A Worker entry that delegates non-API requests to the `ASSETS` binding.
 - Explicit Worker-first routing for `/api`, `/healthz`, `/chat` and `/signal`.
-- A deliberate HTTP 503 response for those backend routes until their Fetch-native and Durable Object implementations are ready. This prevents a preview Worker from falsely appearing healthy or accepting unauthenticated/unsupported traffic.
+- A request-scoped `pg` client adapter that reads the Hyperdrive connection string from the binding and always closes the client; Hyperdrive owns the underlying connection pool.
+- `/healthz` runs `SELECT 1` through Hyperdrive and returns 503 if the binding/database is unavailable.
+- A Fetch-native, read-only `/api/auth/me` endpoint validates the existing opaque session cookie against the Supabase `sessions` table and returns only public profile fields.
+- All other API routes and both WebSocket routes still return a deliberate HTTP 503 until their complete Fetch-native and Durable Object implementations are ready. This prevents a preview Worker from falsely appearing healthy or accepting unauthenticated/unsupported traffic.
 - Automated tests covering static asset delegation, missing bindings and fail-closed API/WebSocket behavior.
 
 This is a local configuration/code scaffold only. It has not been deployed, and it does not replace the current Node server. There is intentionally no deploy script or production routing change.
@@ -29,7 +32,7 @@ The current production backend is a Node HTTP server (`server.js`) using `http.c
 
 The current `src/auth.js` and `src/social.js` handlers use Node request/response streams and module-level environment configuration. Before routing production traffic to Workers, refactor them into Fetch-native handlers with explicit request-scoped bindings, while preserving their existing validation, transaction boundaries, authorization checks, rate limits and response semantics.
 
-Use Cloudflare's supported Node.js compatibility for the PostgreSQL driver, and initialize the database pool from the Hyperdrive binding. Verify all required `pg` APIs and transaction behavior in the Workers runtime; do not assume that Node compatibility means the whole current server is compatible.
+Use Cloudflare's supported Node.js compatibility for the PostgreSQL driver. `cloudflare/database.mjs` creates one short-lived `pg.Client` per request and closes it in `finally`; Hyperdrive owns connection pooling. Do not cache clients or connection strings across invocations. The adapter is unit-tested, but a real Hyperdrive ID is not configured yet, so database connectivity and transaction behavior in the Workers runtime remain unverified. The `/api/auth/me` port is read-only and does not yet replace the Node backend.
 
 ## Free-plan guardrails (verify again before deployment)
 
