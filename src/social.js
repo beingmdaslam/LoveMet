@@ -321,13 +321,54 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 400, { error: "Provide a valid requestId and accept or decline action." });
         return true;
       }
-      const result = await pool.query(
-        `UPDATE contact_requests SET status = $3, updated_at = NOW()
-         WHERE id = $1 AND recipient_id = $2 AND status = 'pending'
-           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = contact_requests.requester_id) OR (b.blocker_id = contact_requests.requester_id AND b.blocked_id = $2))
-         RETURNING id, status`,
-        [requestId, user.id, action === "accept" ? "accepted" : "declined"]
-      );
+      let result;
+      if (action === "accept") {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const pending = await client.query(
+            "SELECT requester_id FROM contact_requests WHERE id = $1 AND recipient_id = $2 AND status = 'pending'",
+            [requestId, user.id]
+          );
+          if (!pending.rowCount) {
+            await client.query("ROLLBACK");
+            json(res, 404, { error: "Pending contact request not found." });
+            return true;
+          }
+          const requesterId = pending.rows[0].requester_id;
+          await client.query(
+            "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
+            [requesterId, user.id]
+          );
+          result = await client.query(
+            `UPDATE contact_requests SET status = 'accepted', updated_at = NOW()
+             WHERE id = $1 AND recipient_id = $2 AND status = 'pending'
+               AND NOT EXISTS (SELECT 1 FROM user_blocks b
+                 WHERE (b.blocker_id = $2 AND b.blocked_id = contact_requests.requester_id)
+                    OR (b.blocker_id = contact_requests.requester_id AND b.blocked_id = $2))
+             RETURNING id, status`,
+            [requestId, user.id]
+          );
+          if (!result.rowCount) {
+            await client.query("ROLLBACK");
+            json(res, 404, { error: "Pending contact request not found." });
+            return true;
+          }
+          await client.query("COMMIT");
+        } catch (error) {
+          try { await client.query("ROLLBACK"); } catch {}
+          throw error;
+        } finally {
+          client.release();
+        }
+      } else {
+        result = await pool.query(
+          `UPDATE contact_requests SET status = 'declined', updated_at = NOW()
+           WHERE id = $1 AND recipient_id = $2 AND status = 'pending'
+           RETURNING id, status`,
+          [requestId, user.id]
+        );
+      }
       if (!result.rowCount) {
         json(res, 404, { error: "Pending contact request not found." });
         return true;
@@ -646,12 +687,43 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 403, { error: "You can message accepted contacts only." });
         return true;
       }
-      const result = await pool.query(
-        `INSERT INTO messages (sender_id, recipient_id, body)
-         VALUES ($1, $2, $3)
-         RETURNING id, sender_id, recipient_id, body, created_at, delivered_at, read_at`,
-        [user.id, contactId, message]
-      );
+      const client = await pool.connect();
+      let result;
+      try {
+        await client.query("BEGIN");
+        // Serialize message creation with blocking and contact removal for this account pair.
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
+          [user.id, contactId]
+        );
+        const stillContact = await client.query(
+          `SELECT 1 FROM contact_requests
+           WHERE status = 'accepted'
+             AND ((requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1))
+             AND NOT EXISTS (SELECT 1 FROM user_blocks b
+               WHERE (b.blocker_id = $1 AND b.blocked_id = $2)
+                  OR (b.blocker_id = $2 AND b.blocked_id = $1))
+           LIMIT 1`,
+          [user.id, contactId]
+        );
+        if (!stillContact.rowCount) {
+          await client.query("ROLLBACK");
+          json(res, 403, { error: "You can message accepted contacts only." });
+          return true;
+        }
+        result = await client.query(
+          `INSERT INTO messages (sender_id, recipient_id, body)
+           VALUES ($1, $2, $3)
+           RETURNING id, sender_id, recipient_id, body, created_at, delivered_at, read_at`,
+          [user.id, contactId, message]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        try { await client.query("ROLLBACK"); } catch {}
+        throw error;
+      } finally {
+        client.release();
+      }
       publishMessage(result.rows[0]);
       json(res, 201, { message: result.rows[0] });
       return true;
