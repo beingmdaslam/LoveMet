@@ -1,5 +1,6 @@
 import { getSessionUser } from './auth.mjs';
 import { allowRequest } from './rate-limit.mjs';
+import { publishUserEvent } from './user-events.mjs';
 const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }; const UUID = /^[0-9a-f-]{36}$/i;
 function json(status, body) { return new Response(JSON.stringify(body), { status, headers: HEADERS }); }
 function sameOrigin(request) { try { const origin = request.headers.get('origin'); return Boolean(origin) && new URL(origin).origin === new URL(request.url).origin; } catch { return false; } }
@@ -28,7 +29,9 @@ export async function handleCallMutation(request, client, env) {
     const active = await client.query("SELECT id FROM call_invites WHERE status IN ('ringing','accepted') AND expires_at > NOW() AND (caller_id = ANY($1::uuid[]) OR callee_id = ANY($1::uuid[])) LIMIT 1", [[user.id, contactId]]);
     if (active.rowCount) { await client.query('ROLLBACK'); return json(409, { error: 'You or this contact is already busy with another call.' }); }
     const created = await client.query('INSERT INTO call_invites (caller_id, callee_id) VALUES ($1, $2) RETURNING id, caller_id, callee_id, status, created_at, expires_at', [user.id, contactId]);
-    await client.query('COMMIT'); return new Response(JSON.stringify({ invite: created.rows[0] }), { status: 201, headers: HEADERS });
+    await client.query('COMMIT');
+    await publishUserEvent(env, contactId, { type: 'call-update' });
+    return new Response(JSON.stringify({ invite: created.rows[0] }), { status: 201, headers: HEADERS });
    } catch (error) { try { await client.query('ROLLBACK'); } catch {} if (error.code === '23505') return json(409, { error: 'You or this contact is already busy with another call.' }); throw error; }
   }
   if (pathname === '/api/calls/respond') {
@@ -44,14 +47,19 @@ export async function handleCallMutation(request, client, env) {
      if (active.rowCount) { await client.query('ROLLBACK'); return json(409, { error: 'You or this contact is already busy with another call.' }); }
      const result = await client.query("UPDATE call_invites SET status = 'accepted', updated_at = NOW(), expires_at = NOW() + INTERVAL '4 hours', started_at = NOW() WHERE id = $1 AND callee_id = $2 AND status = 'ringing' AND expires_at > NOW() AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = call_invites.caller_id) OR (b.blocker_id = call_invites.caller_id AND b.blocked_id = $2)) RETURNING id, caller_id, callee_id, status, expires_at", [inviteId, user.id]);
      if (!result.rowCount) { await client.query('ROLLBACK'); return json(403, { error: 'This call is no longer available.' }); }
-     await client.query('COMMIT'); return json(200, { invite: result.rows[0] });
+     await client.query('COMMIT');
+     await Promise.all([callerId, user.id].map(userId => publishUserEvent(env, userId, { type: 'call-update' })));
+     return json(200, { invite: result.rows[0] });
     } catch (error) { try { await client.query('ROLLBACK'); } catch {} throw error; }
    }
    let sql; let args;
    if (action === 'decline') { sql = "UPDATE call_invites SET status = 'declined', updated_at = NOW(), ended_at = NOW() WHERE id = $1 AND callee_id = $2 AND status = 'ringing' AND expires_at > NOW() RETURNING id, caller_id, callee_id, status, expires_at"; args = [inviteId, user.id]; }
    else if (action === 'cancel') { sql = "UPDATE call_invites SET status = 'cancelled', updated_at = NOW(), ended_at = NOW() WHERE id = $1 AND caller_id = $2 AND status = 'ringing' RETURNING id, caller_id, callee_id, status"; args = [inviteId, user.id]; }
    else { sql = "UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW() WHERE id = $1 AND (caller_id = $2 OR callee_id = $2) AND status = 'accepted' RETURNING id, caller_id, callee_id, status"; args = [inviteId, user.id]; }
-   const result = await client.query(sql, args); if (!result.rowCount) return json(404, { error: 'Active call invitation not found.' }); return json(200, { invite: result.rows[0] });
+   const result = await client.query(sql, args);
+   if (!result.rowCount) return json(404, { error: 'Active call invitation not found.' });
+   await Promise.all([result.rows[0].caller_id, result.rows[0].callee_id].map(userId => publishUserEvent(env, userId, { type: 'call-update' })));
+   return json(200, { invite: result.rows[0] });
   }
   return json(404, { error: 'Unknown call mutation endpoint.' });
  } catch (error) { if (error.status) return json(error.status, { error: error.message }); throw error; }
