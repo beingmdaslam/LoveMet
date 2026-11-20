@@ -144,6 +144,33 @@ wss.on("connection", (ws, req) => {
         send(ws, { type: "error", message: "Join a room first." });
         return;
       }
+      // Re-check authorization for every signaling packet so a newly blocked or ended call
+      // cannot keep exchanging media negotiation data over an already-open socket.
+      if (message.type !== "hangup") {
+        try {
+          const permission = await pool.query(
+            `SELECT id FROM call_invites
+             WHERE id = $1 AND status = 'accepted' AND expires_at > NOW()
+               AND (caller_id = $2 OR callee_id = $2)
+               AND NOT EXISTS (
+                 SELECT 1 FROM user_blocks b
+                 WHERE (b.blocker_id = call_invites.caller_id AND b.blocked_id = call_invites.callee_id)
+                    OR (b.blocker_id = call_invites.callee_id AND b.blocked_id = call_invites.caller_id)
+               )
+             LIMIT 1`,
+            [ws.roomId, ws.authUser.id]
+          );
+          if (!permission.rowCount) {
+            send(ws, { type: "error", message: "This call is no longer authorized." });
+            ws.close(1008, "Call authorization expired");
+            return;
+          }
+        } catch {
+          send(ws, { type: "error", message: "Could not verify call permission." });
+          ws.close(1011, "Call authorization unavailable");
+          return;
+        }
+      }
       for (const peer of room) {
         if (peer !== ws) send(peer, { type: message.type, data: message.data });
       }
