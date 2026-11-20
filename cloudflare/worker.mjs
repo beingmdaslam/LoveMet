@@ -115,7 +115,7 @@ export default {
     }
     if (pathname === "/api/contacts/block" || pathname === "/api/contacts/unblock" || pathname === "/api/users/report") {
       try {
-        return await withDatabase(env, client => handleModeration(request, client));
+        return await withDatabase(env, client => handleModeration(request, client, env));
       } catch {
         return unavailable("API");
       }
