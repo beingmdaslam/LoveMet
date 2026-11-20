@@ -1,0 +1,65 @@
+-- LoveMet Cloudflare Worker database login template.
+-- REVIEW BEFORE RUNNING. Execute once in Supabase SQL Editor as the database owner.
+-- Replace the password placeholder with a unique, long random password.
+-- This creates a table-scoped login with explicit RLS policies; it does NOT bypass RLS.
+
+CREATE ROLE lovemet_worker
+  WITH LOGIN
+  PASSWORD 'REPLACE_WITH_A_LONG_RANDOM_PASSWORD'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+
+GRANT USAGE ON SCHEMA public TO lovemet_worker;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+  public.users,
+  public.otp_challenges,
+  public.email_otp_challenges,
+  public.sessions,
+  public.contact_requests,
+  public.messages,
+  public.call_invites,
+  public.user_blocks,
+  public.user_reports,
+  public.api_rate_limits
+TO lovemet_worker;
+
+-- The Worker authenticates users in application code and must read/write
+-- across accounts to implement contacts, chat, calls, moderation and deletion.
+-- These policies grant that backend role access only to the ten listed tables.
+-- They do not grant access to anon/authenticated and do not expose credentials.
+CREATE POLICY lovemet_worker_access ON public.users
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.otp_challenges
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.email_otp_challenges
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.sessions
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.contact_requests
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.messages
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.call_invites
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.user_blocks
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.user_reports
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+CREATE POLICY lovemet_worker_access ON public.api_rate_limits
+  FOR ALL TO lovemet_worker USING (true) WITH CHECK (true);
+
+-- Verify grants and RLS policies before using this login in Hyperdrive.
+SELECT
+  table_name,
+  has_table_privilege('lovemet_worker', format('public.%I', table_name), 'SELECT') AS can_select,
+  has_table_privilege('lovemet_worker', format('public.%I', table_name), 'INSERT') AS can_insert,
+  has_table_privilege('lovemet_worker', format('public.%I', table_name), 'UPDATE') AS can_update,
+  has_table_privilege('lovemet_worker', format('public.%I', table_name), 'DELETE') AS can_delete
+FROM (VALUES
+  ('users'), ('otp_challenges'), ('email_otp_challenges'), ('sessions'),
+  ('contact_requests'), ('messages'), ('call_invites'), ('user_blocks'),
+  ('user_reports'), ('api_rate_limits')
+) AS required(table_name)
+ORDER BY table_name;
+
+-- Keep the password only in Cloudflare Hyperdrive. Never commit the real value.
