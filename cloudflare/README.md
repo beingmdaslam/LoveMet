@@ -29,7 +29,22 @@ For local development, copy `.dev.vars.example` to `.dev.vars` and fill in only 
 
 This is a local configuration/code scaffold only. It has not been deployed, and it does not replace the current Node server. There is intentionally no deploy script or production routing change.
 
-## Runtime and credential readiness\n\nThe Cloudflare Worker now contains Fetch-native adapters for the currently identified authentication, profile, contacts, messages, user lookup, moderation, account and call API routes. The Node backend remains the production fallback. Ported handlers and Durable Object logic have unit coverage, but this is not equivalent to a live Workers-runtime integration test.\n\nBefore local or preview runtime testing, configure:\n\n- `HYPERDRIVE`: a Cloudflare Hyperdrive binding connected to the existing Supabase PostgreSQL database. The binding must expose `connectionString`; no Hyperdrive ID or database URL is committed to this repository.\n- `OTP_HASH_SECRET`: a random secret of at least 32 characters used for OTP hashing and keyed limits.\n- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM_NUMBER`: required for real SMS delivery. Use test credentials or a mocked provider for tests; real SMS may incur charges.\n- `TURN_URLS` and `TURN_SHARED_SECRET`: optional for issuing short-lived TURN credentials. Without a configured TURN relay, calls may fail on restrictive networks; relay bandwidth may incur charges.\n\nFor local development, copy `.dev.vars.example` to `.dev.vars` and use test-only values. For Cloudflare, store sensitive values as Worker secrets and configure the Hyperdrive binding separately. Never commit `.dev.vars`, real database URLs, API tokens or provider secrets. Do not paste secrets into chat.\n\nRemaining readiness work includes validating the actual Hyperdrive connection from a Workers runtime against a non-production/test dataset, exercising every API route and Durable Object path in that runtime, verifying real OTP delivery, and completing two-device Android and restrictive-network call tests. Keep the Node backend available as rollback until all checks pass.\n\n## Free-plan guardrails (verify again before deployment)
+## Runtime and credential readiness
+
+The Cloudflare Worker now contains Fetch-native adapters for the currently identified authentication, profile, contacts, messages, user lookup, moderation, account and call API routes. The Node backend remains the production fallback. Ported handlers and Durable Object logic have unit coverage, but this is not equivalent to a live Workers-runtime integration test.
+
+Before local or preview runtime testing, configure:
+
+- `HYPERDRIVE`: a Cloudflare Hyperdrive binding connected to the existing Supabase PostgreSQL database. The binding must expose `connectionString`; no Hyperdrive ID or database URL is committed to this repository.
+- `OTP_HASH_SECRET`: a random secret of at least 32 characters used for OTP hashing and keyed limits.
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM_NUMBER`: required for real SMS delivery. Use test credentials or a mocked provider for tests; real SMS may incur charges.
+- `TURN_URLS` and `TURN_SHARED_SECRET`: optional for issuing short-lived TURN credentials. Without a configured TURN relay, calls may fail on restrictive networks; relay bandwidth may incur charges.
+
+For local development, copy `.dev.vars.example` to `.dev.vars` and use test-only values. For Cloudflare, store sensitive values as Worker secrets and configure the Hyperdrive binding separately. Never commit `.dev.vars`, real database URLs, API tokens or provider secrets. Do not paste secrets into chat.
+
+Remaining readiness work includes validating the actual Hyperdrive connection from a Workers runtime against a non-production/test dataset, exercising every API route and Durable Object path in that runtime, verifying real OTP delivery, and completing two-device Android and restrictive-network call tests. Keep the Node backend available as rollback until all checks pass.
+
+## Free-plan guardrails (verify again before deployment)
 
 As documented by Cloudflare on 2026-11-20:
 - Workers Free: 100,000 requests/day and 10 ms CPU time per invocation.
