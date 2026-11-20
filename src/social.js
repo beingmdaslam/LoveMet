@@ -179,10 +179,14 @@ async function handleSocialRequest(req, res, pathname) {
       );
       const result = await pool.query(
         `SELECT c.id, c.caller_id, c.callee_id, c.status, c.created_at, c.expires_at,
-                u.username AS caller_username, u.display_name AS caller_display_name
-         FROM call_invites c JOIN users u ON u.id = c.caller_id
-         WHERE c.callee_id = $1 AND c.status = 'ringing' AND c.expires_at > NOW()
-         ORDER BY c.created_at DESC LIMIT 10`,
+                caller.username AS caller_username, caller.display_name AS caller_display_name,
+                callee.username AS callee_username, callee.display_name AS callee_display_name
+         FROM call_invites c
+         JOIN users caller ON caller.id = c.caller_id
+         JOIN users callee ON callee.id = c.callee_id
+         WHERE (c.callee_id = $1 AND c.status = 'ringing' AND c.expires_at > NOW())
+            OR (c.caller_id = $1 AND c.status IN ('ringing','accepted') AND c.expires_at > NOW())
+         ORDER BY c.created_at DESC LIMIT 20`,
         [user.id]
       );
       json(res, 200, { invites: result.rows });
