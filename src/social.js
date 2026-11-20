@@ -117,16 +117,31 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 404, { error: "User not found." });
         return true;
       }
-      await pool.query(
-        "INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-        [user.id, targetId]
-      );
-      await pool.query(
-        `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
-         WHERE status IN ('ringing','accepted')
-           AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
-        [user.id, targetId]
-      );
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        // Use the same pair lock as contact-request creation to prevent block/request races.
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
+          [user.id, targetId]
+        );
+        await client.query(
+          "INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          [user.id, targetId]
+        );
+        await client.query(
+          `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
+           WHERE status IN ('ringing','accepted')
+             AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
+          [user.id, targetId]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        try { await client.query("ROLLBACK"); } catch {}
+        throw error;
+      } finally {
+        client.release();
+      }
       json(res, 200, { ok: true });
       return true;
     }
@@ -238,6 +253,15 @@ async function handleSocialRequest(req, res, pathname) {
           "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
           [user.id, target.rows[0].id]
         );
+        const blockedInsideLock = await client.query(
+          "SELECT 1 FROM user_blocks WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1) LIMIT 1",
+          [user.id, target.rows[0].id]
+        );
+        if (blockedInsideLock.rowCount) {
+          await client.query("ROLLBACK");
+          json(res, 403, { error: "Contact requests are unavailable between these accounts." });
+          return true;
+        }
         const existing = await client.query(
           `SELECT id, status FROM contact_requests
            WHERE ((requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1))
