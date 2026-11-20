@@ -20,7 +20,7 @@ export class CallRooms {
   const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
   this.ctx.acceptWebSocket(server);
   await this.ctx.storage.setAlarm(Date.now() + 60000);
-  server.serializeAttachment({ userId: session.rows[0].id, tokenHash: hash, expectedRoomId, roomId: null, joined: false, isInitiator: false });
+  server.serializeAttachment({ userId: session.rows[0].id, tokenHash: hash, socketId: crypto.randomUUID(), expectedRoomId, roomId: null, joined: false, isInitiator: false });
   return new Response(null, { status: 101, webSocket: client });
  }
  async authorize(attachment, roomId) {
@@ -41,13 +41,14 @@ export class CallRooms {
    const membership = await this.ctx.storage.transaction(async txn => {
     const entries = await txn.list({ prefix: 'member:' + roomId + ':' });
     const existing = await txn.get(memberKey);
-    if (existing?.connected) return { error: 'duplicate' };
-    const reconnected = Boolean(existing && !existing.connected && existing.expiresAt > Date.now());
+    const existingSocketOpen = existing?.connected && this.ctx.getWebSockets().some(peer => peer.deserializeAttachment()?.socketId === existing.socketId);
+    if (existingSocketOpen) return { error: 'duplicate' };
+    const reconnected = Boolean(existing && (( !existing.connected && existing.expiresAt > Date.now()) || (existing.connected && !existingSocketOpen)));
     const others = [...entries.entries()].filter(([key, value]) => key !== memberKey && (value.connected || value.expiresAt > Date.now()));
     if (others.length >= 2) return { error: 'full' };
     if (existing && !reconnected) await txn.delete(memberKey);
     const isInitiator = reconnected ? Boolean(existing.isInitiator) : others.length === 0;
-    await txn.put(memberKey, { userId: attachment.userId, isInitiator, connected: true, expiresAt: null });
+    await txn.put(memberKey, { userId: attachment.userId, socketId: attachment.socketId, isInitiator, connected: true, expiresAt: null });
     if (reconnected) await txn.delete(reconnectKey);
     return { isInitiator, reconnected };
    });
@@ -74,8 +75,9 @@ export class CallRooms {
   const reconnectKey = 'reconnect:' + attachment.roomId + ':' + attachment.userId;
   await this.ctx.storage.transaction(async txn => {
    const member = await txn.get(memberKey);
-   await txn.put(memberKey, { userId: attachment.userId, isInitiator: attachment.isInitiator, connected: false, expiresAt });
-   await txn.put(reconnectKey, { isInitiator: member?.isInitiator ?? attachment.isInitiator, expiresAt });
+   if (member?.socketId !== attachment.socketId) return;
+   await txn.put(memberKey, { userId: attachment.userId, socketId: attachment.socketId, isInitiator: attachment.isInitiator, connected: false, expiresAt });
+   await txn.put(reconnectKey, { isInitiator: member.isInitiator ?? attachment.isInitiator, expiresAt });
   });
   await this.ctx.storage.setAlarm(expiresAt);
   for (const peer of this.ctx.getWebSockets()) { const other = peer.deserializeAttachment(); if (other?.joined && other.roomId === attachment.roomId) send(peer, { type: 'peer-disconnected' }); }
