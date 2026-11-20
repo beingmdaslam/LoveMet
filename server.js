@@ -28,7 +28,13 @@ const server = http.createServer(async (req, res) => {
     }
     const ext = path.extname(filePath);
     const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript" };
-    res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream", "X-Content-Type-Options": "nosniff" });
+    res.writeHead(200, {
+      "Content-Type": types[ext] || "application/octet-stream",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(self), microphone=(self), geolocation=()"
+    });
     res.end(data);
   });
 });
