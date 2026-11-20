@@ -1,4 +1,4 @@
-import { withDatabase } from "./database.mjs";
+import { withDatabase, isSchemaReady } from "./database.mjs";
 import { handleAuthMe } from "./auth.mjs";
 import { handleProfilePatch } from "./profile.mjs";
 import { handleContactsGet } from "./contacts.mjs";
@@ -173,8 +173,9 @@ export default {
     if (pathname === "/healthz") {
       if (!env.USER_EVENTS || !env.CALL_ROOMS) return unavailable("backend");
       try {
-        await withDatabase(env, client => client.query("SELECT 1 AS ok"));
-        return new Response(JSON.stringify({ ok: true, database: "connected" }), {
+        const schemaReady = await withDatabase(env, isSchemaReady);
+        if (!schemaReady) return unavailable("backend schema");
+        return new Response(JSON.stringify({ ok: true, database: "connected", schema: "ready" }), {
           status: 200,
           headers: JSON_HEADERS
         });
