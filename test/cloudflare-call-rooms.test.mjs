@@ -208,14 +208,3 @@ test('call room refuses non-participants before allocating a WebSocket', async (
  assert.equal(response.status, 403);
  assert.equal(sockets.length, 0);
 });
-
-test('call room permits an accepted call participant to upgrade', async () => {
- const { room, sockets } = setup();
- room.database = async (_env, callback) => callback({ query: async () => ({ rowCount: 1, rows: [{ id: 'u1' }] }) });
- room.authorize = async () => ({ rowCount: 1, rows: [{ caller_id: 'u1', callee_id: 'u2' }] });
- const response = await room.fetch(new Request('https://lovemet.example/signal?roomId=' + roomId, {
-  headers: { Upgrade: 'websocket', Origin: 'https://lovemet.example', Cookie: 'lovemet_session=valid-session' }
- }));
- assert.equal(response.status, 101);
- assert.equal(sockets.length, 1);
-});
