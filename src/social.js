@@ -1,5 +1,5 @@
 const { pool } = require("./auth");
-const { publishMessage, publishReadReceipt } = require("./realtime");
+const { publishUser, publishMessage, publishReadReceipt } = require("./realtime");
 
 const MAX_BODY_BYTES = 8 * 1024;
 
@@ -461,6 +461,8 @@ async function handleSocialRequest(req, res, pathname) {
            RETURNING id, caller_id, callee_id, status, created_at, expires_at`,
           [user.id, contactId]
         );
+        publishUser(contactId, { type: "call-update" });
+        publishUser(user.id, { type: "call-update" });
         json(res, 201, { invite: created.rows[0] });
       } catch (error) {
         if (error.code === "23505") {
@@ -507,6 +509,8 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 404, { error: "Active call invitation not found." });
         return true;
       }
+      publishUser(result.rows[0].caller_id, { type: "call-update" });
+      publishUser(result.rows[0].callee_id, { type: "call-update" });
       json(res, 200, { invite: result.rows[0] });
       return true;
     }
