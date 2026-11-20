@@ -10,7 +10,7 @@ export async function publishUserEvent(env, userId, payload) {
  try { await env.USER_EVENTS.get(id).fetch('https://internal.lovemet/publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch { /* HTTP polling remains the fallback if realtime delivery is unavailable. */ }
 }
 export class UserEvents {
- constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+ constructor(ctx, env, database = withDatabase) { this.ctx = ctx; this.env = env; this.database = database; }
  async fetch(request) {
   const url = new URL(request.url);
   if (request.method === 'POST' && url.pathname === '/publish') {
@@ -25,7 +25,7 @@ export class UserEvents {
   const origin = request.headers.get('Origin'); try { if (!origin || new URL(origin).origin !== new URL(request.url).origin) return new Response('Invalid chat origin.', { status: 403, headers: HEADERS }); } catch { return new Response('Invalid chat origin.', { status: 403, headers: HEADERS }); }
   const token = cookieToken(request); if (!token || token.length > 200) return new Response('Sign in required.', { status: 401, headers: HEADERS });
   const hash = await tokenHash(token); let session;
-  try { session = await withDatabase(this.env, client => client.query('SELECT u.id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash])); } catch { return new Response('Chat service unavailable.', { status: 503, headers: { ...HEADERS, 'Retry-After': '60' } }); }
+  try { session = await this.database(this.env, client => client.query('SELECT u.id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash])); } catch { return new Response('Chat service unavailable.', { status: 503, headers: { ...HEADERS, 'Retry-After': '60' } }); }
   if (!session.rowCount) return new Response('Sign in required.', { status: 401, headers: HEADERS });
   const sockets = this.ctx.getWebSockets(); if (sockets.length >= 5) return new Response('Too many chat connections.', { status: 429, headers: HEADERS });
   const pair = new WebSocketPair(); const [client, server] = Object.values(pair); this.ctx.acceptWebSocket(server);
