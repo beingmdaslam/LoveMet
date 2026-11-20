@@ -62,3 +62,15 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS messages_conversation_idx
   ON messages (sender_id, recipient_id, created_at DESC);
+
+
+-- Supabase hardening: app data is accessed only by the trusted Node backend.
+-- Do not add public client policies for these private account tables.
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE otp_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contact_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL PRIVILEGES ON TABLE users, otp_challenges, sessions, contact_requests, messages
+  FROM anon, authenticated;
