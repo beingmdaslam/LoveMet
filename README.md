@@ -63,6 +63,9 @@ The mobile interface now includes username search, contact requests, accepted co
 - WebSocket signaling requires a valid LoveMet session and an accepted invitation; room IDs are invitation UUIDs, not user-chosen room codes.
 - The invitation table is protected by RLS and has no anon/authenticated table grants. Live two-device testing and TURN configuration remain required.
 
+## Account deletion
+- `DELETE /api/account` deletes the authenticated account and cascades its contacts, messages, sessions, and call history; OTP challenges for the phone number are deleted in the same transaction.
+
 ## Supabase database status
 The LoveMet Supabase project contains the six core tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, `messages`, and `call_invites`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
 
