@@ -25,6 +25,8 @@ The repository now includes:
 - Unknown API routes and any real-time route whose Durable Object binding or database is unavailable return a deliberate HTTP 503. The Worker does not claim readiness when its required services are missing.
 - Automated tests covering static asset delegation, missing bindings and fail-closed API/WebSocket behavior.
 
+For local development, copy `.dev.vars.example` to `.dev.vars` and fill in only test credentials. Keep real values in local ignored files or Cloudflare secrets; never commit them. Hyperdrive still requires a real binding ID and a secure Supabase connection string.
+
 This is a local configuration/code scaffold only. It has not been deployed, and it does not replace the current Node server. There is intentionally no deploy script or production routing change.
 
 ## Important migration constraints
