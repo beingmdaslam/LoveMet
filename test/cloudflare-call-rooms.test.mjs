@@ -218,3 +218,16 @@ test('call room rejects UUID-shaped values that are not canonical UUIDs', async 
  assert.equal(response.status, 400);
  assert.equal(sockets.length, 0);
 });
+
+test('call room rejects a second live signaling socket for the same account before upgrade', async () => {
+ const { room, sockets } = setup();
+ const existing = socket('u1');
+ sockets.push(existing);
+ room.database = async (_env, callback) => callback({ query: async () => ({ rowCount: 1, rows: [{ id: 'u1' }] }) });
+ room.authorize = async () => ({ rowCount: 1, rows: [{ caller_id: 'u1', callee_id: 'u2' }] });
+ const response = await room.fetch(new Request('https://lovemet.example/signal?roomId=' + roomId, {
+  headers: { Upgrade: 'websocket', Origin: 'https://lovemet.example', Cookie: 'lovemet_session=valid-session' }
+ }));
+ assert.equal(response.status, 409);
+ assert.equal(sockets.length, 1);
+});
