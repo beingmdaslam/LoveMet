@@ -22,6 +22,7 @@ export async function handleAccountDelete(request, client, env) {
   await client.query('COMMIT');
   const participants = new Set([identity.id, ...activeCalls.rows.flatMap(row => [row.caller_id, row.callee_id])]);
   await Promise.all([...participants].map(userId => publishUserEvent(env, userId, { type: 'call-update' })));
+  await publishUserEvent(env, identity.id, { type: 'session-ended' });
   const secure = new URL(request.url).protocol === 'https:';
   const cookie = 'lovemet_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' + (secure ? '; Secure' : '');
   return json(200, { ok: true }, { 'Set-Cookie': cookie });
