@@ -17,17 +17,17 @@ LoveMet is an early one-to-one video calling prototype.
 5. Open `http://localhost:3000` in two browser windows or devices on the same network. For another device, configure the host firewall; camera/microphone access requires HTTPS or localhost.
 
 ## Important limitations
-This is a prototype, not a production-ready calling service. It currently uses a public STUN server and has no TURN server, authentication, OTP, user profiles, contacts, chat, call history, push notifications, abuse reporting, or end-to-end identity verification. Calls may fail on restrictive mobile or corporate networks until a TURN service is configured. Public deployment must use HTTPS/WSS and appropriate security, privacy, rate-limiting, and abuse protections.
+This is a prototype, not a production-ready calling service. It currently uses a public STUN server and has no TURN server, call history, push notifications, abuse reporting, or end-to-end identity verification. Backend foundations for phone OTP authentication, profiles, contacts and text messaging are present, but require PostgreSQL and a configured SMS provider; the user interface and live integration testing are incomplete. Calls may fail on restrictive mobile or corporate networks until a TURN service is configured. Public deployment must use HTTPS/WSS and appropriate security, privacy, rate-limiting, and abuse protections.
 
 Do not use this prototype for sensitive or confidential calls.
 
 
-## Authentication foundation (in progress)
+## Authentication foundation
 - PostgreSQL schema is in `db/schema.sql` for users, one-time-code challenges, and revocable sessions.
 - `src/security.js` provides E.164 phone validation, cryptographically generated six-digit codes, scrypt-based OTP hashing/verification, and opaque session-token helpers.
 - Run the built-in security tests with `npm test` (Node.js 20+).
 - Copy `.env.example` to `.env` for local configuration. Keep real secrets out of Git.
-- SMS delivery and database-backed login endpoints are not active yet. A real SMS provider and PostgreSQL connection must be configured before phone verification can be used. Do not treat generated OTPs or this foundation as production authentication.
+- The backend login endpoints are implemented but return service-unavailable until a real PostgreSQL connection and SMS provider credentials are configured. Do not treat this foundation as production authentication.
 
 
 ## Phone authentication API (backend foundation)
