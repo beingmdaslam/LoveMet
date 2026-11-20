@@ -80,7 +80,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Publish new messages and read receipts to recipient event rooms after database commit (HTTP polling remains fallback)
 - [x] Broadcast call state changes to both users after invite/accept/decline/cancel/end, logout and account deletion
 - [x] Broadcast contact request/accept/decline and block/unblock changes to affected accounts
-- [ ] Add explicit session-revoked/account-deleted event to immediately close all of the user's chat sockets
+- [x] Publish session-ended events on logout/account deletion so all connected tabs sign out immediately
 - [ ] Add Workers integration tests and compare security behavior with the Node backend
 - [ ] Complete real-device, network, privacy and operational checks before requesting deployment approval
 
