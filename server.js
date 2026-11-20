@@ -94,6 +94,11 @@ wss.on("connection", (ws, req) => {
           `SELECT id FROM call_invites
            WHERE id = $1 AND status = 'accepted' AND expires_at > NOW()
              AND (caller_id = $2 OR callee_id = $2)
+             AND NOT EXISTS (
+               SELECT 1 FROM user_blocks b
+               WHERE (b.blocker_id = call_invites.caller_id AND b.blocked_id = call_invites.callee_id)
+                  OR (b.blocker_id = call_invites.callee_id AND b.blocked_id = call_invites.caller_id)
+             )
            LIMIT 1`,
           [roomId, ws.authUser.id]
         );
