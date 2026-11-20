@@ -10,7 +10,6 @@ import { handleModeration } from "./moderation.mjs";
 import { handleOtpAndLogout } from "./otp.mjs";
 import { handleAccountDelete } from "./account.mjs";
 import { handleCallMutation } from "./call-mutations.mjs";
-import { publishUserEvent } from "./user-events.mjs";
 export { CallRooms } from "./call-rooms.mjs";
 export { UserEvents } from "./user-events.mjs";
 
