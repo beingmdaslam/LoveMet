@@ -1,0 +1,58 @@
+# LoveMet development roadmap
+
+Deployment is intentionally postponed until the application has been implemented and tested.
+
+## Phase 1 — Calling foundation
+- [x] Responsive 1-to-1 calling screen
+- [x] Room-code signaling server
+- [x] Camera and microphone controls
+- [x] Leave-call control
+- [ ] Authenticated call invitations
+- [ ] TURN server configuration and network fallback
+- [ ] Reconnect handling, call timers, busy/offline states
+- [ ] Camera switching and speaker/audio-route handling
+- [ ] Call permission and device compatibility testing
+
+## Phase 2 — Accounts and profiles
+- [ ] Phone-number registration and OTP verification
+- [ ] Secure sessions, logout, account recovery and rate limits
+- [ ] Display name, username, avatar and profile editing
+- [ ] Privacy controls and block/report tools
+
+## Phase 3 — Contacts and messaging
+- [ ] Find/add contacts by username or invite link
+- [ ] Contact requests and accept/decline
+- [ ] One-to-one text chat
+- [ ] Message delivery/read state and timestamps
+- [ ] Safe handling of attachments (if enabled)
+
+## Phase 4 — Call management
+- [ ] Incoming call screen and accept/decline
+- [ ] Missed, incoming and outgoing call history
+- [ ] Call duration and call status
+- [ ] Push notifications for incoming calls/messages
+
+## Phase 5 — Android experience
+- [ ] Installable PWA baseline
+- [ ] Native Android wrapper/app decision
+- [ ] Background/lock-screen call behavior
+- [ ] Bluetooth headset and speaker routing
+- [ ] Battery, network and permission testing on real Android devices
+
+## Phase 6 — Security, privacy and quality
+- [ ] Threat model and abuse prevention
+- [ ] Authentication and authorization tests
+- [ ] Secure signaling and input validation
+- [ ] Data retention and account deletion
+- [ ] Privacy policy and terms
+- [ ] Accessibility and low-bandwidth behavior
+- [ ] Automated tests and production readiness review
+
+## External dependencies (do not invent or hardcode credentials)
+- SMS/OTP provider account and API credentials
+- TURN service credentials or a self-hosted TURN server
+- Push notification configuration (Firebase/FCM for Android)
+- HTTPS domain and hosting choice (only when deployment is approved)
+
+## Current status
+The repository contains an early calling prototype only. The unchecked items above are not implemented yet. Do not describe this repository as production-ready.
