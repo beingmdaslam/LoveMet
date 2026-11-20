@@ -89,8 +89,7 @@ export class CallRooms {
    await txn.put(memberKey, { userId: attachment.userId, socketId: attachment.socketId, isInitiator: attachment.isInitiator, connected: false, expiresAt });
    await txn.put(reconnectKey, { isInitiator: member.isInitiator ?? attachment.isInitiator, expiresAt });
   });
-  const existingAlarm = await this.ctx.storage.getAlarm();
-  if (existingAlarm === null || expiresAt < existingAlarm) await this.ctx.storage.setAlarm(expiresAt);
+  await this.ctx.storage.setAlarm(expiresAt);
   for (const peer of this.ctx.getWebSockets()) { const other = peer.deserializeAttachment(); if (other?.joined && other.roomId === attachment.roomId) send(peer, { type: 'peer-disconnected' }); }
  }
  async alarm() {
