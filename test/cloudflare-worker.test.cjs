@@ -112,7 +112,7 @@ test("Cloudflare Worker rejects non-WebSocket chat requests before database or D
   ]) {
     const response = await worker.fetch(request, env);
     assert.equal(response.status, 426);
-    assert.equal(response.headers.get("content-type"), "text/plain;charset=UTF-8");
+    assert.equal(response.headers.get("content-type"), "text/plain; charset=utf-8");
   }
   assert.equal(databaseCalls, 0);
   assert.equal(objectLookups, 0);
