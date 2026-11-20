@@ -2,22 +2,31 @@
 
 This is an operator checklist for the LoveMet Cloudflare preview. It does not deploy the Worker, change DNS, or modify the existing Node production service.
 
-## 1. Create Hyperdrive
+## 1. Prepare a dedicated Supabase database login
+
+1. Open the Supabase Dashboard for the LoveMet project and go to **SQL Editor**.
+2. Review [`hyperdrive-role.sql.example`](./hyperdrive-role.sql.example). It is a template only; it has not been run.
+3. Replace the password placeholder with a unique, long random password, then execute the SQL as the database owner. It creates a login role with no superuser, database-creation, role-creation, or RLS-bypass privileges; it grants CRUD only on LoveMet's ten application tables and adds RLS policies only for that backend role.
+4. Confirm the verification query reports all four privileges as `true` for the ten tables. Do not grant this role to `anon` or `authenticated`.
+5. Store the new database password securely. Never paste it into ChatGPT, GitHub, source files, or `.dev.vars.example`.
+
+This backend role can read and write account data across users because the server enforces LoveMet's session and relationship authorization. Its credentials must remain exclusively in Cloudflare Hyperdrive.
+
+## 2. Create Hyperdrive
 
 1. Open the Cloudflare dashboard and select the account that will own the preview Worker.
 2. Open **Workers & Pages → Hyperdrive** and create a Hyperdrive configuration.
-3. Use the Supabase project's **Direct connection** PostgreSQL connection string as the origin. Do not use the Supavisor pooled connection; Hyperdrive provides connection pooling.
-4. Use a dedicated PostgreSQL login for the Worker with only the SQL privileges required by the application. Do not use a Supabase service-role API key as a database password.
-5. Keep the connection string private. Do not paste it into chat, GitHub issues, source files, or `.dev.vars.example`.
+3. Use the Supabase project's **Direct connection** PostgreSQL endpoint, database name, and the dedicated `lovemet_worker` login as the origin. Do not use the Supavisor pooled connection; Hyperdrive provides connection pooling.
+4. Keep the connection string private. Do not paste it into chat, GitHub issues, source files, or `.dev.vars.example`.
 
-## 2. Bind Hyperdrive to the preview Worker
+## 3. Bind Hyperdrive to the preview Worker
 
 1. Open **Workers & Pages → lovemet-cloudflare-preview → Settings → Bindings**.
 2. Add a **Hyperdrive** binding named exactly `HYPERDRIVE` and select the configuration created above.
 3. Confirm the binding is attached to the preview Worker environment, not an unrelated Worker or production service.
 4. Record the Hyperdrive configuration ID privately for the repository's Wrangler configuration step. Do not commit credentials.
 
-## 3. Add runtime secrets
+## 4. Add runtime secrets
 
 Use the Cloudflare Worker **Settings → Variables and Secrets** page to add secrets. Do not use plaintext variables for secret values.
 
@@ -28,7 +37,7 @@ Use the Cloudflare Worker **Settings → Variables and Secrets** page to add sec
 
 Never send secret values in ChatGPT or commit them to Git.
 
-## 4. Preview verification sequence
+## 5. Preview verification sequence
 
 After the `HYPERDRIVE` binding and required secrets are configured:
 
