@@ -164,6 +164,11 @@ async function handleAuthRequest(req, res, pathname) {
         return true;
       }
 
+      await pool.query(
+        `DELETE FROM otp_challenges
+         WHERE expires_at < NOW() - INTERVAL '1 day'
+            OR consumed_at < NOW() - INTERVAL '1 day'`
+      );
       const code = createOtp();
       const codeHash = await hashOtp(phone, code, process.env.OTP_HASH_SECRET);
       await pool.query(
@@ -236,6 +241,10 @@ async function handleAuthRequest(req, res, pathname) {
            ON CONFLICT (phone_e164) DO UPDATE SET phone_verified_at = COALESCE(users.phone_verified_at, NOW()), updated_at = NOW()
            RETURNING id, display_name, username, avatar_url`,
           [phone]
+        );
+        await client.query(
+          `DELETE FROM sessions
+           WHERE expires_at <= NOW() OR revoked_at < NOW() - INTERVAL '30 days'`
         );
         user = userResult.rows[0];
         sessionToken = createSessionToken();
