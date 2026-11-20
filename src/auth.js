@@ -24,7 +24,9 @@ const MAX_BODY_BYTES = 8 * 1024;
 
 async function allowRequest(key, max, windowMs) {
   // Hash identifiers before persistence so phone numbers and IP addresses are never stored.
-  const keyHash = crypto.createHash("sha256").update(String(key)).digest("hex");
+  const pepper = process.env.OTP_HASH_SECRET;
+  if (!pepper || pepper.length < 32) throw new Error("OTP rate-limit secret is not configured.");
+  const keyHash = crypto.createHmac("sha256", pepper).update(String(key)).digest("hex");
   const result = await pool.query(
     `INSERT INTO api_rate_limits (key_hash, hit_count, expires_at)
      VALUES ($1, 1, NOW() + ($3::double precision * INTERVAL '1 millisecond'))
@@ -39,12 +41,16 @@ async function allowRequest(key, max, windowMs) {
   rateLimitChecks += 1;
   if (rateLimitChecks % 100 === 0) {
     // Bound stale-row accumulation without putting a large cleanup scan on every request.
-    await pool.query(
-      `DELETE FROM api_rate_limits
-       WHERE key_hash IN (
-         SELECT key_hash FROM api_rate_limits WHERE expires_at <= NOW() LIMIT 500
-       )`
-    );
+    try {
+      await pool.query(
+        `DELETE FROM api_rate_limits
+         WHERE key_hash IN (
+           SELECT key_hash FROM api_rate_limits WHERE expires_at <= NOW() LIMIT 500
+         )`
+      );
+    } catch (error) {
+      console.error("LoveMet rate-limit cleanup error:", error.message);
+    }
   }
   return Number(result.rows[0].hit_count) <= max;
 }
@@ -167,14 +173,14 @@ async function handleAuthRequest(req, res, pathname) {
     if (pathname === "/api/auth/request-otp" && req.method === "POST") {
       const body = await readJson(req);
       const phone = parsePhone(body.phone);
+      if (!process.env.OTP_HASH_SECRET || process.env.OTP_HASH_SECRET.length < 32) {
+        json(res, 503, { error: "OTP service is not configured." });
+        return true;
+      }
       const ip = getClientIp(req);
       if (!(await allowRequest(`ip:${ip}`, 10, 60 * 60 * 1000)) ||
           !(await allowRequest(`phone:${phone}`, 3, 15 * 60 * 1000))) {
         json(res, 429, { error: "Too many requests. Try again later." });
-        return true;
-      }
-      if (!process.env.OTP_HASH_SECRET || process.env.OTP_HASH_SECRET.length < 32) {
-        json(res, 503, { error: "OTP service is not configured." });
         return true;
       }
 
