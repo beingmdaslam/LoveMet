@@ -57,6 +57,7 @@ The mobile interface now includes username search, contact requests, accepted co
 ## Authenticated call invitations
 - `POST /api/calls/invite` with `{"contactId":"..." }` creates a short-lived invitation for an accepted contact.
 - `GET /api/calls/invites` polls incoming and outgoing active invitations.
+- `GET /api/calls/status?inviteId=...` lets both participants detect when an accepted call has ended.
 - `POST /api/calls/respond` with `{"inviteId":"...","action":"accept"}`, `decline`, `cancel`, or `end` updates call state.
 - `GET /api/calls/history` returns the latest 30 incoming/outgoing calls with status and duration when available.
 - WebSocket signaling requires a valid LoveMet session and an accepted invitation; room IDs are invitation UUIDs, not user-chosen room codes.
