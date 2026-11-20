@@ -405,4 +405,4 @@ async function handleAuthRequest(req, res, pathname) {
   }
 }
 
-module.exports = { handleAuthRequest, pool };
+module.exports = { handleAuthRequest, pool, allowRequest };
