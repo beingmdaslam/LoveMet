@@ -45,3 +45,10 @@ test('message history refuses blocked or non-contact users', async () => {
  const response = await handleMessages(new Request('https://lovemet.example/api/messages?contactId=22222222-2222-4222-8222-222222222222', { headers: { cookie: 'lovemet_session=' + token } }), client, { OTP_HASH_SECRET: secret });
  assert.equal(response.status, 403);
 });
+test('invalid message cursor is rejected before changing read receipts', async () => {
+ const client = fakeClient();
+ const request = new Request('https://lovemet.example/api/messages?contactId=22222222-2222-4222-8222-222222222222&before=not-a-date&beforeId=33333333-3333-4333-8333-333333333333', { headers: { cookie: 'lovemet_session=' + token } });
+ const response = await handleMessages(request, client, { OTP_HASH_SECRET: secret });
+ assert.equal(response.status, 400);
+ assert.equal(client.calls.some(call => call.sql.includes('SET delivered_at = COALESCE')), false);
+});
