@@ -518,12 +518,54 @@ async function handleSocialRequest(req, res, pathname) {
         return true;
       }
       let result;
-      if (action === "accept" || action === "decline") {
+      if (action === "accept") {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const invite = await client.query(
+            "SELECT caller_id, callee_id FROM call_invites WHERE id = $1 AND callee_id = $2 AND status = 'ringing' AND expires_at > NOW()",
+            [inviteId, user.id]
+          );
+          if (!invite.rowCount) {
+            await client.query("ROLLBACK");
+            json(res, 404, { error: "Active call invitation not found." });
+            return true;
+          }
+          const callerId = invite.rows[0].caller_id;
+          await client.query(
+            "SELECT pg_advisory_xact_lock(hashtextextended(LEAST($1::text, $2::text) || ':' || GREATEST($1::text, $2::text), 0))",
+            [callerId, user.id]
+          );
+          result = await client.query(
+            `UPDATE call_invites SET status = 'accepted', updated_at = NOW(),
+                    expires_at = NOW() + INTERVAL '4 hours', started_at = NOW()
+             WHERE id = $1 AND callee_id = $2 AND status = 'ringing' AND expires_at > NOW()
+               AND NOT EXISTS (
+                 SELECT 1 FROM user_blocks b
+                 WHERE (b.blocker_id = $2 AND b.blocked_id = call_invites.caller_id)
+                    OR (b.blocker_id = call_invites.caller_id AND b.blocked_id = $2)
+               )
+             RETURNING id, caller_id, callee_id, status, expires_at`,
+            [inviteId, user.id]
+          );
+          if (!result.rowCount) {
+            await client.query("ROLLBACK");
+            json(res, 403, { error: "This call is no longer available." });
+            return true;
+          }
+          await client.query("COMMIT");
+        } catch (error) {
+          try { await client.query("ROLLBACK"); } catch {}
+          throw error;
+        } finally {
+          client.release();
+        }
+      } else if (action === "decline") {
         result = await pool.query(
-          `UPDATE call_invites SET status = $3, updated_at = NOW(), expires_at = CASE WHEN $3 = 'accepted' THEN NOW() + INTERVAL '4 hours' ELSE expires_at END, started_at = CASE WHEN $3 = 'accepted' THEN NOW() ELSE started_at END, ended_at = CASE WHEN $3 = 'declined' THEN NOW() ELSE ended_at END
+          `UPDATE call_invites SET status = 'declined', updated_at = NOW(), ended_at = NOW()
            WHERE id = $1 AND callee_id = $2 AND status = 'ringing' AND expires_at > NOW()
            RETURNING id, caller_id, callee_id, status, expires_at`,
-          [inviteId, user.id, action === "accept" ? "accepted" : "declined"]
+          [inviteId, user.id]
         );
       } else if (action === "cancel") {
         result = await pool.query(
