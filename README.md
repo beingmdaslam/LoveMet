@@ -54,6 +54,13 @@ All routes below require a valid LoveMet session cookie:
 The mobile interface now includes username search, contact requests, accepted contacts, and one-to-one text chat. Chat refreshes every four seconds while the page is visible; basic delivery/read timestamps are included. Push-based real-time delivery, message pagination, stronger abuse controls, and live database integration tests remain outstanding.
 
 
+## Authenticated call invitations
+- `POST /api/calls/invite` with `{"contactId":"..." }` creates a short-lived invitation for an accepted contact.
+- `GET /api/calls/invites` polls incoming and outgoing active invitations.
+- `POST /api/calls/respond` with `{"inviteId":"...","action":"accept"}`, `decline`, `cancel`, or `end` updates call state.
+- WebSocket signaling requires a valid LoveMet session and an accepted invitation; room IDs are invitation UUIDs, not user-chosen room codes.
+- The invitation table is protected by RLS and has no anon/authenticated table grants. Live two-device testing and TURN configuration remain required.
+
 ## Supabase database status
 The LoveMet Supabase project contains the five core tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, and `messages`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
 
