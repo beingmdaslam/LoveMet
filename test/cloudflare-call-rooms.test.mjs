@@ -9,7 +9,7 @@ function setup() {
  return { room, ctx, sockets, values, get alarm() { return alarm; } };
 }
 const roomId = '11111111-1111-4111-8111-111111111111';
-function socket(userId, isAllowed = true) { return new Socket({ userId, tokenHash: 'hashed-' + userId, roomId: null, joined: false, isInitiator: false, allow: isAllowed }); }
+function socket(userId, isAllowed = true) { return new Socket({ userId, tokenHash: 'hashed-' + userId, expectedRoomId: roomId, roomId: null, joined: false, isInitiator: false, allow: isAllowed }); }
 test('call room admits only authorized participants and relays negotiation messages', async () => {
  const { room, ctx, sockets } = setup(); const a = socket('u1'); const b = socket('u2'); sockets.push(a, b);
  await room.webSocketMessage(a, JSON.stringify({ type: 'join', roomId }));
