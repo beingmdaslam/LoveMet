@@ -548,7 +548,7 @@ async function handleSocialRequest(req, res, pathname) {
       } catch (error) {
         try { await client.query("ROLLBACK"); } catch {}
         if (error.code === "23505") {
-          json(res, 409, { error: "A call with this contact is already active." });
+          json(res, 409, { error: "You or this contact is already busy with another call." });
           return true;
         }
         throw error;
