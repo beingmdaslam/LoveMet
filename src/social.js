@@ -681,16 +681,6 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 403, { error: "Messages are available only with accepted contacts." });
         return true;
       }
-      const readUpdates = await pool.query(
-        `UPDATE messages
-         SET delivered_at = COALESCE(delivered_at, NOW()), read_at = NOW()
-         WHERE sender_id = $2 AND recipient_id = $1 AND read_at IS NULL
-         RETURNING id`,
-        [user.id, contactId]
-      );
-      if (readUpdates.rowCount) {
-        publishReadReceipt(contactId, user.id, readUpdates.rows.map(row => row.id), new Date().toISOString());
-      }
       const beforeRaw = url.searchParams.get("before");
       const beforeId = url.searchParams.get("beforeId");
       let before = null;
@@ -701,6 +691,16 @@ async function handleSocialRequest(req, res, pathname) {
           return true;
         }
         before = parsedBefore.toISOString();
+      }
+      const readUpdates = await pool.query(
+        `UPDATE messages
+         SET delivered_at = COALESCE(delivered_at, NOW()), read_at = NOW()
+         WHERE sender_id = $2 AND recipient_id = $1 AND read_at IS NULL
+         RETURNING id`,
+        [user.id, contactId]
+      );
+      if (readUpdates.rowCount) {
+        publishReadReceipt(contactId, user.id, readUpdates.rows.map(row => row.id), new Date().toISOString());
       }
       const result = await pool.query(
         `SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at
