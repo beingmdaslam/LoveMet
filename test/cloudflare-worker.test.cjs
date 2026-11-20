@@ -74,3 +74,11 @@ test("Wrangler config declares separate SQLite-backed call and user-event Durabl
   assert.deepEqual(config.migrations[0].new_sqlite_classes, ["CallRooms"]);
   assert.deepEqual(config.migrations[1].new_sqlite_classes, ["UserEvents"]);
 });
+
+test("Cloudflare Worker rejects malformed UUID-shaped signaling room IDs", async () => {
+  const worker = await getWorker();
+  const response = await worker.fetch(new Request("https://example.test/signal?roomId=111111111111111111111111111111111111", {
+    headers: { Upgrade: "websocket" }
+  }), { CALL_ROOMS: { idFromName() { throw new Error("must not allocate a room"); } } });
+  assert.equal(response.status, 400);
+});
