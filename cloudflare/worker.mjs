@@ -41,8 +41,10 @@ export default {
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
     if (pathname === "/signal") {
+      const roomId = url.searchParams.get("roomId") || "";
+      if (!/^[0-9a-f-]{36}$/i.test(roomId)) return new Response("A valid call invitation is required.", { status: 400 });
       if (!env.CALL_ROOMS) return unavailable("real-time connection");
-      const id = env.CALL_ROOMS.idFromName("lovemet-call-rooms");
+      const id = env.CALL_ROOMS.idFromName(roomId);
       return env.CALL_ROOMS.get(id).fetch(request);
     }
     if (pathname === "/api/calls/invite" || pathname === "/api/calls/respond") {
