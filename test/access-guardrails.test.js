@@ -318,3 +318,14 @@ test("primary chat controls and video previews have accessible labels and focus 
   assert.match(html, /id="remoteVideo"[^>]*aria-label=/);
   assert.match(html, /button:focus-visible,input:focus-visible,a:focus-visible/);
 });
+
+test("search, contact requests, call invitations and message sends have shared account limits", () => {
+  const auth = fs.readFileSync(path.join(root, "src/auth.js"), "utf8");
+  const social = fs.readFileSync(path.join(root, "src/social.js"), "utf8");
+  assert.ok(auth.includes("module.exports = { handleAuthRequest, pool, allowRequest }"));
+  assert.ok(social.includes('const { pool, allowRequest } = require("./auth")'));
+  assert.ok(social.includes("allowRequest(`search:${user.id}`, 60, 60 * 1000)"));
+  assert.ok(social.includes("allowRequest(`contact-request:${user.id}`, 20, 60 * 60 * 1000)"));
+  assert.ok(social.includes("allowRequest(`call-invite:${user.id}`, 10, 60 * 60 * 1000)"));
+  assert.ok(social.includes("allowRequest(`message-send:${user.id}`, 60, 60 * 1000)"));
+});
