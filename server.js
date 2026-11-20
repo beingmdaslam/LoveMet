@@ -89,13 +89,36 @@ wss.on("connection", (ws, req) => {
     ws.close(1008, "Invalid signaling origin");
     return;
   }
+  let authCheckInFlight = false;
+  let authTimer = null;
   ws.authPromise = getUser(req).then(user => {
     ws.authUser = user;
-    if (!user) ws.close(1008, "Sign in required");
+    if (!user) {
+      ws.close(1008, "Sign in required");
+      return null;
+    }
+    // Revalidate the session periodically so logout, account deletion, or
+    // session revocation also terminates an already-open signaling socket.
+    authTimer = setInterval(async () => {
+      if (authCheckInFlight || ws.readyState !== WebSocket.OPEN) return;
+      authCheckInFlight = true;
+      try {
+        const current = await getUser(req);
+        if (!current || current.id !== user.id) ws.close(1008, "Session expired");
+      } catch {
+        ws.close(1011, "Session verification unavailable");
+      } finally {
+        authCheckInFlight = false;
+      }
+    }, 60000);
     return user;
   }).catch(() => {
     ws.close(1011, "Authentication unavailable");
     return null;
+  });
+
+  ws.on("close", () => {
+    if (authTimer) clearInterval(authTimer);
   });
 
   ws.on("message", async (raw) => {
