@@ -24,10 +24,10 @@ export async function handleMessages(request, client, env) {
  if (method === 'GET') {
   const url = new URL(request.url); const contactId = String(url.searchParams.get('contactId') || '');
   if (!UUID.test(contactId) || !(await isContact(client, user.id, contactId))) return json(403, { error: 'Messages are available only with accepted contacts.' });
-  const read = await client.query('UPDATE messages SET delivered_at = COALESCE(delivered_at, NOW()), read_at = NOW() WHERE sender_id = $2 AND recipient_id = $1 AND read_at IS NULL RETURNING id, read_at', [user.id, contactId]);
-  if (read.rowCount) await publishUserEvent(env, contactId, { type: 'read', contactId: user.id, messageIds: read.rows.map(row => row.id), readAt: read.rows[0].read_at });
   const beforeRaw = url.searchParams.get('before'); const beforeId = url.searchParams.get('beforeId'); let before = null;
   if (beforeRaw !== null || beforeId !== null) { const parsed = new Date(beforeRaw || ''); if (!Number.isFinite(parsed.getTime()) || !UUID.test(beforeId || '')) return json(400, { error: 'Invalid message cursor.' }); before = parsed.toISOString(); }
+  const read = await client.query('UPDATE messages SET delivered_at = COALESCE(delivered_at, NOW()), read_at = NOW() WHERE sender_id = $2 AND recipient_id = $1 AND read_at IS NULL RETURNING id, read_at', [user.id, contactId]);
+  if (read.rowCount) await publishUserEvent(env, contactId, { type: 'read', contactId: user.id, messageIds: read.rows.map(row => row.id), readAt: read.rows[0].read_at });
   const result = await client.query('SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at FROM messages WHERE ((sender_id = $1 AND recipient_id = $2) OR (sender_id = $2 AND recipient_id = $1)) AND ($3::timestamptz IS NULL OR (created_at, id) < ($3::timestamptz, $4::uuid)) ORDER BY created_at DESC, id DESC LIMIT 51', [user.id, contactId, before, beforeId]);
   const hasMore = result.rows.length > 50; const messages = result.rows.slice(0, 50).reverse();
   return json(200, { messages, hasMore });
