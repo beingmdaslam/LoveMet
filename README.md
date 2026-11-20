@@ -72,7 +72,7 @@ The mobile interface now includes username search, contact requests, accepted co
 - `DELETE /api/account` deletes the authenticated account and cascades its contacts, messages, sessions, and call history; OTP challenges for the phone number are deleted in the same transaction.
 
 ## Supabase database status
-The LoveMet Supabase project contains the six core tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, `messages`, and `call_invites`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
+The LoveMet Supabase project contains the eight core tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, `messages`, `call_invites`, `user_blocks`, and `user_reports`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
 
 Before live integration, configure these server-side environment variables in the hosting platform:
 - `DATABASE_URL`: Supabase PostgreSQL connection string (use the provider-recommended pooler if direct connectivity is unavailable).
