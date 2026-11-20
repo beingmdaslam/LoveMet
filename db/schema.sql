@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS user_reports (
   CHECK (reporter_id <> reported_id)
 );
 CREATE INDEX IF NOT EXISTS user_reports_reported_created_idx ON user_reports (reported_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS user_reports_reporter_created_idx ON user_reports (reporter_id, created_at DESC);
 ALTER TABLE user_blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_reports ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE user_blocks, user_reports FROM anon, authenticated;
