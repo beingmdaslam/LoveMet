@@ -101,7 +101,7 @@ export default {
     }
     if (pathname === "/api/account") {
       try {
-        return await withDatabase(env, client => handleAccountDelete(request, client));
+        return await withDatabase(env, client => handleAccountDelete(request, client, env));
       } catch {
         return unavailable("API");
       }
