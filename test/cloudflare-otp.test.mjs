@@ -68,3 +68,43 @@ test('OTP verification locks a challenge after five incorrect codes', async () =
  assert.equal(attempts, 5);
  assert.equal(db.calls.filter(call => call.sql.includes('SET attempts = attempts + 1')).length, 5);
 });
+
+test('email OTP uses Resend-compatible delivery and creates a verified email session', async () => {
+ const email = 'person@example.com'; const db = baseDb(); let challengeHash = null; let sentPayload = null;
+ db.query = async (sql, args) => {
+  db.calls.push({ sql, args });
+  if (sql.includes('INSERT INTO api_rate_limits')) return { rowCount: 1, rows: [{ hit_count: 1 }] };
+  if (sql.includes('INSERT INTO email_otp_challenges')) { challengeHash = args[1]; return { rowCount: 1, rows: [] }; }
+  if (sql.includes('FROM email_otp_challenges')) return { rowCount: 1, rows: [{ id: 'email-otp1', code_hash: challengeHash, attempts: 0 }] };
+  if (sql.includes('INSERT INTO users')) return { rowCount: 1, rows: [{ id: 'email-user1', display_name: null, username: null, avatar_url: null }] };
+  return { rowCount: 1, rows: [] };
+ };
+ const env = { OTP_HASH_SECRET: secret, RESEND_API_KEY: 're_test_key', RESEND_FROM_EMAIL: 'LoveMet <login@example.com>' };
+ const sender = async (url, options) => { sentPayload = { url, options, body: JSON.parse(options.body) }; return new Response(JSON.stringify({ id: 'mail_123' }), { status: 200 }); };
+ const sent = await handleOtpAndLogout(req('/api/auth/request-email-otp', { email: ' PERSON@example.com ' }), db, env, sender);
+ assert.equal(sent.status, 200);
+ assert.equal(sentPayload.url, 'https://api.resend.com/emails');
+ assert.deepEqual(sentPayload.body.to, [email]);
+ assert.ok(challengeHash);
+ const codeMatch = sentPayload.body.text.match(/code is (\\d{6})/);
+ assert.ok(codeMatch);
+ const verified = await handleOtpAndLogout(req('/api/auth/verify-email-otp', { email, code: codeMatch[1] }), db, env, sender);
+ assert.equal(verified.status, 200);
+ assert.equal((await verified.json()).user.id, 'email-user1');
+ assert.match(verified.headers.get('set-cookie'), /HttpOnly/);
+ assert.ok(db.calls.some(call => call.sql.includes('INSERT INTO users (email, email_verified_at)')));
+ assert.ok(db.calls.some(call => call.sql.includes('INSERT INTO sessions')));
+});
+test('email OTP fails closed when email provider is not configured', async () => {
+ const db = baseDb();
+ const response = await handleOtpAndLogout(req('/api/auth/request-email-otp', { email: 'person@example.com' }), db, { OTP_HASH_SECRET: secret });
+ assert.equal(response.status, 503);
+ assert.ok(db.calls.some(call => call.sql.includes('INSERT INTO email_otp_challenges')));
+ assert.ok(db.calls.some(call => call.sql === 'ROLLBACK'));
+});
+test('email OTP rejects invalid email addresses before database access', async () => {
+ const db = baseDb();
+ const response = await handleOtpAndLogout(req('/api/auth/request-email-otp', { email: 'not-an-email' }), db, { OTP_HASH_SECRET: secret });
+ assert.equal(response.status, 400);
+ assert.equal(db.calls.length, 0);
+});
