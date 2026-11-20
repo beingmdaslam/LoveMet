@@ -172,3 +172,20 @@ test('call room alarm removes only expired reconnect members and schedules the n
  assert.equal(values.has('member:' + roomId + ':u2'), true);
  assert.equal(state.alarm, laterExpiry);
 });
+
+test('call room rejects signaling requests without a WebSocket upgrade', async () => {
+ const { room } = setup();
+ const response = await room.fetch(new Request('https://lovemet.example/signal?roomId=' + roomId));
+ assert.equal(response.status, 426);
+});
+
+test('call room rejects missing, malformed, or cross-origin signaling handshakes before accepting sockets', async () => {
+ const { room, sockets } = setup();
+ const missingOrigin = await room.fetch(new Request('https://lovemet.example/signal?roomId=' + roomId, { headers: { Upgrade: 'websocket' } }));
+ assert.equal(missingOrigin.status, 403);
+ const crossOrigin = await room.fetch(new Request('https://lovemet.example/signal?roomId=' + roomId, { headers: { Upgrade: 'websocket', Origin: 'https://attacker.example' } }));
+ assert.equal(crossOrigin.status, 403);
+ const malformedRoom = await room.fetch(new Request('https://lovemet.example/signal?roomId=bad', { headers: { Upgrade: 'websocket', Origin: 'https://lovemet.example' } }));
+ assert.equal(malformedRoom.status, 400);
+ assert.equal(sockets.length, 0);
+});
