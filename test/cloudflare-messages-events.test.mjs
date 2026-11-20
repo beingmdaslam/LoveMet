@@ -13,3 +13,10 @@ test('reading messages publishes read receipts to the original sender', async ()
  const events = []; const client = database({ mode: 'read' }); const response = await handleMessages(request('GET', null, '?contactId=22222222-2222-4222-8222-222222222222'), client, env(events));
  assert.equal(response.status, 200); assert.equal(events.length, 1); assert.equal(events[0].id, '22222222-2222-4222-8222-222222222222'); assert.deepEqual(events[0].payload, { type: 'read', contactId: 'user-a', messageIds: ['m1', 'm2'], readAt: '2026-11-20T10:00:00Z' });
 });
+test('message send remains successful after commit when the realtime namespace is unavailable', async () => {
+ const client = database();
+ const unavailableEnv = { OTP_HASH_SECRET: '0123456789abcdef0123456789abcdef', USER_EVENTS: { idFromName(id) { return id; }, get() { return { async fetch() { throw new Error('Durable Object unavailable'); } }; } } };
+ const response = await handleMessages(request('POST', { contactId: '22222222-2222-4222-8222-222222222222', message: 'hello' }), client, unavailableEnv);
+ assert.equal(response.status, 201);
+ assert.ok(client.calls.some(call => call.sql === 'COMMIT'));
+});
