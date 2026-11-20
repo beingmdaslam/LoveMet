@@ -10,6 +10,7 @@ function setup() {
   async put(key, value) { values.set(key, structuredClone(value)); },
   async delete(key) { values.delete(key); },
   async setAlarm(value) { alarm = value; },
+  async getAlarm() { return alarm; },
   async list({ prefix }) { return new Map([...values.entries()].filter(([key]) => key.startsWith(prefix))); },
   transaction(callback) {
    const run = transactionGate.then(() => callback({
@@ -139,4 +140,17 @@ test('call room permits a teardown hangup after the invitation authorization has
  await room.webSocketMessage(a, JSON.stringify({ type: 'hangup' }));
  assert.deepEqual(b.sent.at(-1), { type: 'hangup' });
  assert.equal(a.closed, null);
+});
+
+test('call room keeps the earliest reconnect expiry alarm when both peers disconnect', async () => {
+ const { room, sockets, values, alarm } = setup();
+ const a = socket('u1'); const b = socket('u2'); sockets.push(a, b);
+ await room.webSocketMessage(a, JSON.stringify({ type: 'join', roomId }));
+ await room.webSocketMessage(b, JSON.stringify({ type: 'join', roomId }));
+ a.readyState = 3; await room.webSocketClose(a, 1006, 'first network loss');
+ const firstAlarm = alarm;
+ b.readyState = 3; await room.webSocketClose(b, 1006, 'second network loss');
+ assert.equal(alarm, firstAlarm);
+ assert.ok(values.has('reconnect:' + roomId + ':u1'));
+ assert.ok(values.has('reconnect:' + roomId + ':u2'));
 });
