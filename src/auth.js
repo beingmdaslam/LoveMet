@@ -57,6 +57,8 @@ function allowRequest(key, max, windowMs) {
   }
   const entry = requestLimits.get(key);
   if (!entry || now >= entry.resetAt) {
+    // Bound memory when an attacker rotates source addresses or phone numbers.
+    if (!entry && requestLimits.size >= 20000) return false;
     requestLimits.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }
