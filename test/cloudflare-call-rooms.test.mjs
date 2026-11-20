@@ -39,3 +39,24 @@ test('call room expires reconnect placeholders and notifies remaining peer', asy
  values.set('reconnect:' + roomId + ':u1', { isInitiator: true, expiresAt: Date.now() - 1 });
  await room.alarm(); assert.ok(peer.sent.some(message => message.type === 'peer-left')); assert.equal(values.size, 0);
 });
+test('call room alarm closes a connected socket after session or invitation revocation', async () => {
+ const { room, sockets } = setup();
+ const peer = socket('u1', false);
+ peer.serializeAttachment({ ...peer.deserializeAttachment(), joined: true, roomId });
+ sockets.push(peer);
+ await room.alarm();
+ assert.equal(peer.closed.code, 1008);
+});
+test('call room alarm tolerates two transient authorization failures before closing', async () => {
+ const { room, sockets } = setup();
+ const peer = socket('u1');
+ peer.serializeAttachment({ ...peer.deserializeAttachment(), joined: true, roomId });
+ sockets.push(peer);
+ room.authorize = async () => { throw new Error('temporary database outage'); };
+ await room.alarm();
+ assert.equal(peer.closed, null);
+ await room.alarm();
+ assert.equal(peer.closed, null);
+ await room.alarm();
+ assert.equal(peer.closed.code, 1011);
+});
