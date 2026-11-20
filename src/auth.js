@@ -119,9 +119,9 @@ async function currentUser(req) {
 }
 
 async function handleAuthRequest(req, res, pathname) {
-  if (!pathname.startsWith("/api/auth/")) return false;
-  if (!["POST", "GET"].includes(req.method)) {
-    json(res, 405, { error: "Method not allowed." }, { Allow: "GET, POST" });
+  if (!pathname.startsWith("/api/auth/") && pathname !== "/api/profile") return false;
+  if (!["POST", "GET", "PATCH"].includes(req.method)) {
+    json(res, 405, { error: "Method not allowed." }, { Allow: "GET, POST, PATCH" });
     return true;
   }
   if (!pool) {
