@@ -53,8 +53,8 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
-    // Fail closed until the Fetch-native API and Durable Object signaling
-    // adapters have passed parity and integration tests.
+    // Explicit routes are handled by Fetch-native adapters and Durable Objects;
+    // unknown API paths fail closed below until the full migration is complete.
     if (pathname === "/chat") {
       if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
         return new Response("WebSocket upgrade required.", { status: 426, headers: JSON_HEADERS });
