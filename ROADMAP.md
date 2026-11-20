@@ -12,7 +12,8 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Short-lived per-user TURN credential delivery support
 - [ ] TURN provider setup and real-network relay fallback testing
 - [x] In-call elapsed timer
-- [ ] Reconnect handling and busy/offline states
+- [ ] Reconnect handling and offline states
+- [x] Prevent overlapping active/ringing calls with participant-level transaction locks
 - [x] Front/rear camera switching
 - [ ] Speaker/audio-route handling
 - [ ] Call permission and device compatibility testing
@@ -32,6 +33,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Backend one-to-one text-message send/read API
 - [x] Basic frontend one-to-one chat UI (live integration pending)
 - [x] HTTP polling fallback for chat when live sockets are unavailable
+- [x] Restore live chat sockets after mobile network returns or app tab becomes visible
 - [x] Authenticated same-origin WebSocket live message delivery to sender and recipient
 - [x] Immediate read-receipt delivery to the original sender
 - [x] Same-origin WebSocket authentication, periodic session revalidation, and per-account socket limits
