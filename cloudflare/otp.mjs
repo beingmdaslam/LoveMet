@@ -1,6 +1,7 @@
 import { randomBytes, randomInt, scrypt as scryptCallback, timingSafeEqual, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { allowRequest } from './rate-limit.mjs';
+import { publishUserEvent } from './user-events.mjs';
 const scrypt = promisify(scryptCallback);
 const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const MAX_BODY_BYTES = 8192; const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -66,8 +67,9 @@ export async function handleOtpAndLogout(request, client, env, fetcher = fetch) 
   }
   const token = readCookie(request, 'lovemet_session');
   if (token) {
-   const result = await client.query("WITH revoked AS (UPDATE sessions SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL RETURNING user_id), ended AS (UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW() WHERE status = 'accepted' AND (caller_id IN (SELECT user_id FROM revoked) OR callee_id IN (SELECT user_id FROM revoked)) RETURNING id) SELECT id FROM ended", [hashSession(token)]);
-   void result;
+   const result = await client.query("WITH revoked AS (UPDATE sessions SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL RETURNING user_id), ended AS (UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW() WHERE status = 'accepted' AND (caller_id IN (SELECT user_id FROM revoked) OR callee_id IN (SELECT user_id FROM revoked)) RETURNING caller_id, callee_id) SELECT caller_id, callee_id FROM ended", [hashSession(token)]);
+   const participants = new Set(result.rows.flatMap(row => [row.caller_id, row.callee_id]));
+   await Promise.all([...participants].map(userId => publishUserEvent(env, userId, { type: 'call-update' })));
   }
   return json(200, { ok: true }, { 'Set-Cookie': sessionCookie('', request, 0) });
  } catch (error) { const status = error.status || 500; if (status >= 500) console.error('LoveMet Worker auth error:', error.message); return json(status, { error: status === 500 ? 'Authentication service error.' : error.message }); }
