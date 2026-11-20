@@ -83,18 +83,7 @@ export default {
     }
     if (pathname === "/api/calls/invite" || pathname === "/api/calls/respond") {
       try {
-        const response = await withDatabase(env, client => handleCallMutation(request, client, env));
-        if (response.ok) {
-          const payload = await response.clone().json().catch(() => null);
-          const invite = payload?.invite;
-          if (invite?.caller_id && invite?.callee_id) {
-            await Promise.all([
-              publishUserEvent(env, invite.caller_id, { type: "call-update" }),
-              publishUserEvent(env, invite.callee_id, { type: "call-update" })
-            ]);
-          }
-        }
-        return response;
+        return await withDatabase(env, client => handleCallMutation(request, client, env));
       } catch {
         return unavailable("API");
       }
