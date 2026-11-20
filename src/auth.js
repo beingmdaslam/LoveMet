@@ -1,5 +1,6 @@
 const crypto = require("node:crypto");
 const { Pool } = require("pg");
+const { publishUser } = require("./realtime");
 const {
   normalizePhone, createOtp, hashOtp, verifyOtp,
   createSessionToken, hashSessionToken, isSameOriginRequest
@@ -370,7 +371,25 @@ async function handleAuthRequest(req, res, pathname) {
     if (pathname === "/api/auth/logout" && req.method === "POST") {
       const token = readCookie(req, "lovemet_session");
       if (token) {
-        await pool.query("UPDATE sessions SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL", [hashSessionToken(token)]);
+        const endedCalls = await pool.query(
+          `WITH revoked AS (
+             UPDATE sessions SET revoked_at = NOW()
+             WHERE token_hash = $1 AND revoked_at IS NULL
+             RETURNING user_id
+           ),
+           ended AS (
+             UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
+             WHERE status = 'accepted'
+               AND (caller_id IN (SELECT user_id FROM revoked) OR callee_id IN (SELECT user_id FROM revoked))
+             RETURNING caller_id, callee_id
+           )
+           SELECT caller_id, callee_id FROM ended`,
+          [hashSessionToken(token)]
+        );
+        for (const call of endedCalls.rows) {
+          publishUser(call.caller_id, { type: "call-update" });
+          publishUser(call.callee_id, { type: "call-update" });
+        }
       }
       json(res, 200, { ok: true }, { "Set-Cookie": cookieOptions(req, 0) });
       return true;
