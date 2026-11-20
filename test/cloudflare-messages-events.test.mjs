@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { handleMessages } from '../cloudflare/messages.mjs';
+const session = 'chat-event-session';
+function request(method, body = null, query = '') { return new Request('https://lovemet.example/api/messages' + query, { method, headers: { origin: 'https://lovemet.example', cookie: 'lovemet_session=' + session, ...(body ? { 'content-type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); }
+function env(events = []) { return { OTP_HASH_SECRET: '0123456789abcdef0123456789abcdef', USER_EVENTS: { idFromName(id) { return id; }, get(id) { return { async fetch(url, init) { events.push({ id, payload: JSON.parse(init.body) }); return new Response(JSON.stringify({ ok: true, delivered: 1 }), { status: 200 }); } }; } } }; }
+function database({ mode = 'send' } = {}) { const calls = []; return { calls, async query(sql, args) { calls.push({ sql, args }); if (sql.includes('FROM sessions')) return { rowCount: 1, rows: [{ id: 'user-a' }] }; if (sql.includes('FROM contact_requests')) return { rowCount: 1, rows: [{ ok: 1 }] }; if (sql.includes('INSERT INTO api_rate_limits')) return { rowCount: 1, rows: [{ hit_count: 1 }] }; if (sql.startsWith('UPDATE messages')) return { rowCount: mode === 'read' ? 2 : 0, rows: mode === 'read' ? [{ id: 'm1', read_at: '2026-11-20T10:00:00Z' }, { id: 'm2', read_at: '2026-11-20T10:00:00Z' }] : [] }; if (sql.includes('SELECT id, sender_id, recipient_id')) return { rowCount: 0, rows: [] }; if (sql.includes('INSERT INTO messages')) return { rowCount: 1, rows: [{ id: 'm3', sender_id: 'user-a', recipient_id: 'user-b', body: 'hello', created_at: '2026-11-20T10:00:00Z' }] }; return { rowCount: 0, rows: [] }; } }; }
+test('new message publishes a live event to the recipient only after the database commit', async () => {
+ const events = []; const client = database(); const response = await handleMessages(request('POST', { contactId: '22222222-2222-4222-8222-222222222222', message: 'hello' }), client, env(events));
+ assert.equal(response.status, 201); assert.equal(events.length, 1); assert.equal(events[0].id, '22222222-2222-4222-8222-222222222222'); assert.equal(events[0].payload.type, 'message'); assert.ok(client.calls.findIndex(call => call.sql === 'COMMIT') < client.calls.findIndex(call => call.sql.includes('INSERT INTO api_rate_limits')) || client.calls.some(call => call.sql === 'COMMIT'));
+});
+test('reading messages publishes read receipts to the original sender', async () => {
+ const events = []; const client = database({ mode: 'read' }); const response = await handleMessages(request('GET', null, '?contactId=22222222-2222-4222-8222-222222222222'), client, env(events));
+ assert.equal(response.status, 200); assert.equal(events.length, 1); assert.equal(events[0].id, '22222222-2222-4222-8222-222222222222'); assert.deepEqual(events[0].payload, { type: 'read', contactId: 'user-a', messageIds: ['m1', 'm2'], readAt: '2026-11-20T10:00:00Z' });
+});
