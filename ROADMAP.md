@@ -31,7 +31,9 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Frontend incoming-request accept/decline UI (live integration pending)
 - [x] Backend one-to-one text-message send/read API
 - [x] Basic frontend one-to-one chat UI (live integration pending)
-- [x] Basic 4-second chat polling and read-receipt timestamps (push delivery still pending)
+- [x] HTTP polling fallback for chat when live sockets are unavailable
+- [x] Authenticated same-origin WebSocket live message delivery to sender and recipient
+- [x] Immediate read-receipt delivery to the original sender
 - [x] Bounded 50-message history pages with stable timestamp/UUID cursor and load-older UI
 - [ ] Safe handling of attachments (if enabled)
 
@@ -74,4 +76,4 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Live database + SMS integration tests
 
 ## Current status
-The repository now contains OTP/session foundations, contacts and chat, authenticated one-to-one call invitations, accepted-invite-only WebSocket signaling, incoming call handling, call history, and an installable PWA shell. The new UI has not yet been verified against a live PostgreSQL database or SMS provider. The project is not production-ready.
+The repository now contains OTP/session foundations, contacts and chat with authenticated live WebSocket delivery and read receipts, authenticated one-to-one call invitations, accepted-invite-only WebSocket signaling, incoming call handling, call history, and an installable PWA shell. The new UI has not yet been verified against a live PostgreSQL database or SMS provider. The project is not production-ready.
