@@ -30,6 +30,8 @@
   <p>Text messages and account records are stored in the application database. Video and audio are transmitted using WebRTC. The current app does not provide end-to-end encryption and does not include a call-recording feature. Depending on network conditions, media may travel directly between devices or through a configured TURN relay. Do not use the service to transmit information that requires a level of confidentiality the current app cannot guarantee.</p>
   <h2>Service providers</h2>
   <p>Phone verification may be processed by the configured SMS provider (currently designed for Twilio). Account, contact, and message records are stored in the configured PostgreSQL/Supabase database. Hosting and any configured TURN relay provider may process connection and technical metadata. Final provider names and links must be confirmed before launch.</p>
+  <h2>Safety tools and reports</h2>
+  <p>You can block another account to prevent contact requests, messaging, and calls between the accounts. You can also submit a report with a category and details. Reports are stored for review by the service operator; the moderation process and response times must be established before public launch.</p>
   <h2>Retention and security</h2>
   <p>Account, contact, and message data may remain in the database while the account is active. Call metadata is retained as part of call history. The app uses session cookies, hashed session tokens, access checks, and database row-level security. No online service can guarantee absolute security. Account deletion and a complete retention schedule must be finalized before public launch.</p>
   <h2>Your choices</h2>
