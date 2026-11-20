@@ -7,6 +7,7 @@ const root = path.join(__dirname, "..");
 const social = fs.readFileSync(path.join(root, "src/social.js"), "utf8");
 const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
 const auth = fs.readFileSync(path.join(root, "src/auth.js"), "utf8");
+const frontend = fs.readFileSync(path.join(root, "public/index.html"), "utf8");
 
 test("social routes require an authenticated session", () => {
   assert.match(social, /const user = await getUser\(req\)/);
@@ -222,4 +223,10 @@ test("signaling WebSocket periodically revalidates the login session and clears 
   assert.match(signaling, /Session expired/);
   assert.match(signaling, /ws\.once\("close"|ws\.on\("close"/);
   assert.match(signaling, /clearInterval\(authTimer\)/);
+});
+
+test("live chat reconnects when mobile network returns or app tab becomes visible", () => {
+  assert.match(frontend, /window\.addEventListener\("online",\s*connectChatSocket\)/);
+  assert.match(frontend, /document\.addEventListener\("visibilitychange",\s*\(\)\s*=>\s*\{\s*if\(!document\.hidden&&currentUserId\)connectChatSocket\(\)/);
+  assert.match(frontend, /WebSocket\.OPEN,WebSocket\.CONNECTING/);
 });
