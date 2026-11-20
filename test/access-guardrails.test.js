@@ -51,3 +51,14 @@ test("message history is cursor-paginated and bounded", () => {
   assert.match(social, /Invalid message cursor/);
   assert.match(fs.readFileSync(path.join(root, "public/index.html"), "utf8"), /loadOlderMessagesBtn/);
 });
+
+
+test("contact requests serialize unordered account pairs and reject reverse duplicates", () => {
+  assert.match(social, /pg_advisory_xact_lock\(hashtextextended/);
+  assert.match(social, /LEAST\(\$1::text, \$2::text\)/);
+  assert.match(social, /GREATEST\(\$1::text, \$2::text\)/);
+  assert.match(social, /status IN \('pending','accepted'\)/);
+  assert.match(social, /await client\.query\("BEGIN"\)/);
+  assert.match(social, /await client\.query\("COMMIT"\)/);
+  assert.match(social, /client\.release\(\)/);
+});
