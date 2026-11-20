@@ -21,7 +21,7 @@ export class CallRooms {
   const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
   this.ctx.acceptWebSocket(server);
   await this.ctx.storage.setAlarm(Date.now() + 60000);
-  server.serializeAttachment({ userId: session.rows[0].id, tokenHash: hash, socketId: crypto.randomUUID(), expectedRoomId, roomId: null, joined: false, isInitiator: false });
+  server.serializeAttachment({ userId: session.rows[0].id, tokenHash: hash, socketId: crypto.randomUUID(), expectedRoomId, connectedAt: Date.now(), roomId: null, joined: false, isInitiator: false });
   return new Response(null, { status: 101, webSocket: client });
  }
  async authorize(attachment, roomId) {
@@ -113,6 +113,8 @@ export class CallRooms {
   for (const ws of this.ctx.getWebSockets()) {
    const attachment = ws.deserializeAttachment();
    if (!attachment) { ws.close(1008, 'Missing session'); continue; }
+   // A socket that never joins a call must not keep a Durable Object alarm alive forever.
+   if (!attachment.joined && Number.isFinite(attachment.connectedAt) && now - attachment.connectedAt >= 120000) { ws.close(1008, 'Call join timed out'); continue; }
    try {
     const permission = attachment.joined && attachment.roomId
      ? await this.authorize(attachment, attachment.roomId)
