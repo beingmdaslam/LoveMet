@@ -185,6 +185,25 @@ async function handleSocialRequest(req, res, pathname) {
       return true;
     }
 
+    if (pathname === "/api/calls/status" && req.method === "GET") {
+      const inviteId = String(new URL(req.url, "http://localhost").searchParams.get("inviteId") || "");
+      if (!/^[0-9a-f-]{36}$/i.test(inviteId)) {
+        json(res, 400, { error: "Provide a valid call invitation." });
+        return true;
+      }
+      const result = await pool.query(
+        `SELECT id, status, expires_at FROM call_invites
+         WHERE id = $1 AND (caller_id = $2 OR callee_id = $2) LIMIT 1`,
+        [inviteId, user.id]
+      );
+      if (!result.rowCount) {
+        json(res, 404, { error: "Call invitation not found." });
+        return true;
+      }
+      json(res, 200, { status: result.rows[0].status, expiresAt: result.rows[0].expires_at });
+      return true;
+    }
+
     if (pathname === "/api/calls/history" && req.method === "GET") {
       const result = await pool.query(
         `SELECT c.id, c.status, c.created_at, c.started_at, c.ended_at,
