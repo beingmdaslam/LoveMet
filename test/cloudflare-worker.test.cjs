@@ -68,6 +68,7 @@ test("Cloudflare static assets receive baseline browser security headers", async
 test("Wrangler config declares separate SQLite-backed call and user-event Durable Objects", () => {
   const config = JSON.parse(fs.readFileSync(new URL("../wrangler.jsonc", "file://" + __filename), "utf8"));
   assert.equal(config.main, "./cloudflare/worker.mjs");
+  assert.deepEqual(config.compatibility_flags, ["nodejs_compat"]);
   assert.equal(config.assets.binding, "ASSETS");
   assert.deepEqual(config.durable_objects.bindings.map(binding => binding.name), ["CALL_ROOMS", "USER_EVENTS"]);
   assert.deepEqual(config.migrations.map(migration => migration.tag), ["v1", "v2"]);
