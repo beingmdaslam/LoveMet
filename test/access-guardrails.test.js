@@ -255,3 +255,16 @@ test("duplicate call-invitation conflicts report participant-wide busy state", (
   const route = social.slice(social.indexOf('pathname === "/api/calls/invite"'), social.indexOf('pathname === "/api/calls/respond"'));
   assert.match(route, /if \(error\.code === "23505"\)[\s\S]*You or this contact is already busy with another call/);
 });
+
+
+test("state-changing account and social APIs reject cross-origin browser requests", () => {
+  const security = fs.readFileSync(path.join(root, "src/security.js"), "utf8");
+  const auth = fs.readFileSync(path.join(root, "src/auth.js"), "utf8");
+  const social = fs.readFileSync(path.join(root, "src/social.js"), "utf8");
+  assert.match(security, /function isSameOriginRequest\(req\)/);
+  assert.match(security, /origin\.host === req\.headers\.host && origin\.protocol === expectedProtocol/);
+  assert.match(auth, /\["POST", "PATCH", "DELETE"\]\.includes\(req\.method\) && !isSameOriginRequest\(req\)/);
+  assert.match(social, /\["POST", "PATCH", "DELETE"\]\.includes\(req\.method\) && !isSameOriginRequest\(req\)/);
+  assert.match(auth, /Cross-origin request blocked/);
+  assert.match(social, /Cross-origin request blocked/);
+});
