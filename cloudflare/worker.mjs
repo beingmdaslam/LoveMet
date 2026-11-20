@@ -1,4 +1,5 @@
 import { withDatabase } from "./database.mjs";
+import { handleAuthMe } from "./auth.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -28,6 +29,13 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/api/auth/me") {
+      try {
+        return await withDatabase(env, client => handleAuthMe(request, client));
+      } catch {
+        return unavailable("API");
+      }
+    }
     if (pathname === "/api" || pathname.startsWith("/api/")) {
       return unavailable("API");
     }
