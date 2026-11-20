@@ -10,6 +10,7 @@ export class CallRooms {
   if (request.method !== 'GET' || request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return new Response('WebSocket upgrade required.', { status: 426, headers: { 'Cache-Control': 'no-store' } });
   const origin = request.headers.get('Origin');
   try { if (!origin || new URL(origin).origin !== new URL(request.url).origin) return new Response('Invalid signaling origin.', { status: 403 }); } catch { return new Response('Invalid signaling origin.', { status: 403 }); }
+  const expectedRoomId = new URL(request.url).searchParams.get('roomId') || ''; if (!UUID.test(expectedRoomId)) return new Response('A valid call invitation is required.', { status: 400 });
   const token = cookieToken(request); if (!token || token.length > 200) return new Response('Sign in required.', { status: 401 });
   const hash = await tokenHash(token);
   let session;
@@ -18,7 +19,7 @@ export class CallRooms {
   if (!session.rowCount) return new Response('Sign in required.', { status: 401 });
   const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
   this.ctx.acceptWebSocket(server);
-  server.serializeAttachment({ userId: session.rows[0].id, tokenHash: hash, roomId: null, joined: false, isInitiator: false });
+  server.serializeAttachment({ userId: session.rows[0].id, tokenHash: hash, expectedRoomId, roomId: null, joined: false, isInitiator: false });
   return new Response(null, { status: 101, webSocket: client });
  }
  async authorize(attachment, roomId) {
@@ -31,7 +32,7 @@ export class CallRooms {
   let message; try { message = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { send(ws, { type: 'error', message: 'Invalid message format.' }); return; }
   if (message.type === 'join') {
    if (attachment.joined) { send(ws, { type: 'error', message: 'You are already in a room.' }); return; }
-   const roomId = String(message.roomId || '').trim(); if (!UUID.test(roomId)) { send(ws, { type: 'error', message: 'Join using a valid accepted call invitation.' }); return; }
+   const roomId = String(message.roomId || '').trim(); if (!UUID.test(roomId) || roomId !== attachment.expectedRoomId) { send(ws, { type: 'error', message: 'Join using a valid accepted call invitation.' }); return; }
    let permission; try { permission = await this.authorize(attachment, roomId); } catch { ws.close(1011, 'Call authorization unavailable'); return; }
    if (!permission.rowCount) { ws.close(1008, 'Call invitation is not authorized'); return; }
    const sockets = this.ctx.getWebSockets(); const peers = sockets.filter(peer => peer !== ws && (peer.deserializeAttachment()?.joined) && peer.deserializeAttachment()?.roomId === roomId);
