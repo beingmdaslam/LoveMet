@@ -43,7 +43,7 @@ Before local or preview runtime testing, configure:
 
 For local development, copy `.dev.vars.example` to `.dev.vars` and use test-only values. For Cloudflare, store sensitive values as Worker secrets and configure the Hyperdrive binding separately. Never commit `.dev.vars`, real database URLs, API tokens or provider secrets. Do not paste secrets into chat.
 
-Remaining readiness work includes validating the actual Hyperdrive connection from a Workers runtime against a non-production/test dataset, exercising every API route and Durable Object path in that runtime, verifying real OTP delivery, and completing two-device Android and restrictive-network call tests. Keep the Node backend available as rollback until all checks pass.
+Remaining readiness work includes configuring a Cloudflare Hyperdrive binding and validating it from a Workers runtime against a non-production/test dataset, exercising every API route and Durable Object path in that runtime, configuring and verifying real OTP delivery, and completing two-device Android and restrictive-network call tests. The production Supabase schema is ready, but Cloudflare has not been connected to it or deployed. Keep the Node backend available as rollback until all checks pass.
 
 ## Free-plan guardrails (verify again before deployment)
 
@@ -60,7 +60,7 @@ These are quotas, not a promise that every production traffic level will remain 
 
 1. Add a Workers entry point and Wrangler configuration without changing the existing Node deployment or frontend behavior.
 2. Move static asset serving to Workers Static Assets and verify all existing pages, manifest and service worker paths.
-3. Refactor authentication and social APIs to Fetch-native handlers, preserving the existing Supabase schema and security invariants. The email OTP migration `20261120_03_add_email_otp.sql` must be applied before enabling email login on an existing database. First run the read-only `db/migrations/20261120_03_preflight.sql` and confirm its expected pre-migration results; then review and apply the migration through the Supabase migration workflow, and verify `/healthz` reports `schema: ready`. Do not apply it directly to production until the owner explicitly approves the production schema change.
+3. Refactor authentication and social APIs to Fetch-native handlers, preserving the existing Supabase schema and security invariants. The email OTP migration `20261120_03_add_email_otp.sql` has now been applied to the connected Supabase project with owner approval. The live database was verified to contain all 10 required tables, email identity columns, nullable `phone_e164`, the unique lower(email) index, and an RLS-enabled email OTP table with no `anon` or `authenticated` table privileges. For any other environment, first run the read-only `db/migrations/20261120_03_preflight.sql`, review the results, then apply the migration and verify schema readiness.
 4. Add Hyperdrive database access and run integration tests against a non-production/test account set.
 5. Wire call/contact event publishing into the Durable Object path and complete Workers-runtime integration and two-device tests.
 6. Add TURN strategy, real-network two-device tests, Android background/permission tests, moderation and retention procedures.
