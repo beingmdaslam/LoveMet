@@ -106,7 +106,7 @@
   const roomInput = $("room"), status = $("status"), joinBtn = $("joinBtn");
   const localVideo = $("localVideo"), remoteVideo = $("remoteVideo");
   const micBtn = $("micBtn"), cameraBtn = $("cameraBtn"), leaveBtn = $("leaveBtn");
-  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true, activeCallInvite = null;
+  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true, activeCallInvite = null, statusTimer = null;
 
   function say(message) { status.textContent = message; }
   function send(type, data) {
@@ -143,6 +143,16 @@
             joined = true; isInitiator = !!msg.isInitiator; roomInput.value = msg.roomId; roomInput.disabled = true;
             say("Secure invitation accepted. Connecting to your contact…");
             leaveBtn.disabled = micBtn.disabled = cameraBtn.disabled = false;
+            if (statusTimer) window.clearInterval(statusTimer);
+            statusTimer = window.setInterval(async () => {
+              try {
+                const response = await fetch("/api/calls/status?inviteId=" + encodeURIComponent(roomId), { credentials: "same-origin", cache: "no-store" });
+                if (response.status === 401 || response.status === 404) { say("Call authorization ended."); cleanup(false); return; }
+                if (!response.ok) return;
+                const state = await response.json();
+                if (state.status !== "accepted") { say("Call ended."); cleanup(false); }
+              } catch {}
+            }, 5000);
           } else if (msg.type === "peer-joined") {
             say("The other person joined. Connecting…");
             if (isInitiator && peer.signalingState === "stable") {
@@ -172,6 +182,7 @@
     }
   }
   function cleanup(notify = true) {
+    if (statusTimer) { window.clearInterval(statusTimer); statusTimer = null; }
     if (notify) send("hangup");
     if (activeCallInvite) { const inviteId=activeCallInvite; activeCallInvite=null; fetch("/api/calls/respond",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({inviteId,action:"end"})}).catch(()=>{}).finally(()=>window.dispatchEvent(new Event("lovemet:call-ended"))); }
     if (socket) { socket.close(); socket = null; }
