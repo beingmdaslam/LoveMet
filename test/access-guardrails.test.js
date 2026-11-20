@@ -297,3 +297,13 @@ test("OTP rate limits are database-backed, atomic, and store only hashed identif
     assert.match(source, /REVOKE ALL PRIVILEGES/);
   }
 });
+
+
+test("logout revokes the session and ends accepted calls for that account", () => {
+  const auth = fs.readFileSync(path.join(root, "src/auth.js"), "utf8");
+  const logout = auth.slice(auth.indexOf('pathname === "/api/auth/logout"'));
+  assert.match(logout, /WITH revoked AS \([\s\S]*UPDATE sessions SET revoked_at = NOW\(\)/);
+  assert.match(logout, /UPDATE call_invites SET status = 'ended'[\s\S]*caller_id IN \(SELECT user_id FROM revoked\)[\s\S]*RETURNING caller_id, callee_id/);
+  assert.match(logout, /publishUser\(call\.caller_id, \{ type: "call-update" \}\)/);
+  assert.match(logout, /publishUser\(call\.callee_id, \{ type: "call-update" \}\)/);
+});
