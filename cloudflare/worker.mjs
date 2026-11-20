@@ -4,6 +4,7 @@ import { handleProfilePatch } from "./profile.mjs";
 import { handleContactsGet } from "./contacts.mjs";
 import { handleMessages } from "./messages.mjs";
 import { handleUserLookup } from "./users.mjs";
+import { handleCallsRead } from "./calls.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -33,6 +34,13 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/api/calls/config" || pathname === "/api/calls/history") {
+      try {
+        return await withDatabase(env, client => handleCallsRead(request, client, env));
+      } catch {
+        return unavailable("API");
+      }
+    }
     if (pathname === "/api/users/search" || pathname === "/api/contacts/blocks") {
       try {
         return await withDatabase(env, client => handleUserLookup(request, client, env));
