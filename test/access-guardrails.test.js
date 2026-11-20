@@ -285,7 +285,7 @@ test("state-changing account and social APIs reject cross-origin browser request
 test("OTP rate limits are database-backed, atomic, and store only hashed identifiers", () => {
   const auth = fs.readFileSync(path.join(root, "src/auth.js"), "utf8");
   const schema = fs.readFileSync(path.join(root, "db/schema.sql"), "utf8");
-  const migration = fs.readFileSync(path.join(root, "db/migrations/20261120_add_shared_api_rate_limits.sql"), "utf8");
+  const migration = fs.readFileSync(path.join(root, "db/migrations/20261120_02_add_shared_api_rate_limits.sql"), "utf8");
   assert.match(auth, /async function allowRequest\(key, max, windowMs\)/);
   assert.match(auth, /createHmac\("sha256", pepper\)\.update\(String\(key\)\)\.digest\("hex"\)/);
   assert.match(auth, /ON CONFLICT \(key_hash\) DO UPDATE SET/);
