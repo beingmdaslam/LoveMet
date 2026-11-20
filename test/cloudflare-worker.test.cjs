@@ -172,3 +172,16 @@ test("Wrangler static asset configuration exposes the PWA shell through Worker s
   assert.match(serviceWorker, /\/lovemet-icon\.svg/);
   assert.match(serviceWorker, /url\.pathname\.startsWith\(["']\/api\/["']\)/);
 });
+
+test("all frontend API endpoints fail closed when Hyperdrive is not configured", async () => {
+  const worker = await getWorker();
+  const html = fs.readFileSync(new URL("../public/index.html", "file://" + __filename), "utf8");
+  const routes = [...new Set(html.match(/\/api\/[a-zA-Z0-9_/-]+/g) || [])];
+  assert.ok(routes.length >= 20);
+  for (const pathname of routes) {
+    const response = await worker.fetch(new Request("https://example.test" + pathname), assets());
+    assert.equal(response.status, 503, pathname + " must not fall through to static assets");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal((await response.json()).error, "service_unavailable");
+  }
+});
