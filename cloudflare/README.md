@@ -8,6 +8,7 @@ Deployment is intentionally deferred. This document records the chosen target ar
 - **Cloudflare Worker** handles HTTP API requests and WebSocket upgrade requests.
 - **Durable Objects (SQLite-backed)** own individual chat/signaling rooms so connections are coordinated across Worker isolates. The Free plan supports SQLite-backed Durable Objects; do not use the legacy key-value storage backend.
 - **Cloudflare Hyperdrive + node-postgres (`pg`)** connects the Worker to the existing Supabase PostgreSQL database. Keep the existing Supabase schema and server-side access model; never expose database credentials or service-role secrets to browser code.
+- For the Hyperdrive origin, use Supabase's **Direct connection** string (not the Supavisor pooler); Hyperdrive supplies the pooling layer. The direct Supabase endpoint is IPv6 by default, so confirm the Cloudflare Hyperdrive configuration can reach it before considering any IPv4 add-on or alternate paid networking option. Use a dedicated database login with only the permissions the Worker needs; do not put a service-role API key in the Worker or browser.
 - **Supabase PostgreSQL** remains the source of truth for accounts, sessions, contacts, messages, reports, call invitations and rate limits.
 - **R2** may be used later for user-uploaded avatars and message attachments, after upload validation and authorization are implemented.
 
