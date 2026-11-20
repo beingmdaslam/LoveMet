@@ -85,6 +85,9 @@
     chatSocket.onerror=()=>{if(chatSocket)chatSocket.close();};
   }
   function closeChatSocket(){currentUserId=null;if(chatSocket){chatSocket.onclose=null;chatSocket.close();chatSocket=null;}window.clearTimeout(chatReconnectTimer);}
+  // Restore the live chat channel promptly after mobile network or background-tab recovery.
+  window.addEventListener("online",connectChatSocket);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&currentUserId)connectChatSocket();});
   function action(label,handler,kind="secondary"){const b=document.createElement("button");b.textContent=label;b.className=kind;b.addEventListener("click",handler);return b;}
   async function load(){
     try{const d=await api("/api/auth/me");currentUserId=d.user.id;connectChatSocket();auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";await Promise.all([contacts(),requests(),callHistory(),blockedUsers()]);}
