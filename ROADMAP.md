@@ -11,8 +11,10 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] WebSocket signaling restricted to signed-in participants with accepted invitations
 - [x] Short-lived per-user TURN credential delivery support
 - [ ] TURN provider setup and real-network relay fallback testing
-- [ ] Reconnect handling, call timers, busy/offline states
-- [ ] Camera switching and speaker/audio-route handling
+- [x] In-call elapsed timer
+- [ ] Reconnect handling and busy/offline states
+- [x] Front/rear camera switching
+- [ ] Speaker/audio-route handling
 - [ ] Call permission and device compatibility testing
 
 ## Phase 2 — Accounts and profiles
