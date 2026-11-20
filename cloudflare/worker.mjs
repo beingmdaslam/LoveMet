@@ -104,7 +104,7 @@ export default {
         return unavailable("API");
       }
     }
-    if (pathname === "/api/auth/request-otp" || pathname === "/api/auth/verify-otp" || pathname === "/api/auth/logout") {
+    if (["/api/auth/request-otp", "/api/auth/verify-otp", "/api/auth/request-email-otp", "/api/auth/verify-email-otp", "/api/auth/logout"].includes(pathname)) {
       try {
         return await withDatabase(env, client => handleOtpAndLogout(request, client, env));
       } catch {
