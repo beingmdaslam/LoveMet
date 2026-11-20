@@ -47,6 +47,18 @@ function send(ws, payload) {
 
 wss.on("connection", (ws, req) => {
   ws.roomId = null;
+  const origin = req.headers.origin;
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
+  let originAllowed = false;
+  try {
+    const parsedOrigin = new URL(origin || "");
+    originAllowed = parsedOrigin.host === req.headers.host &&
+      parsedOrigin.protocol === (forwardedProto === "https" ? "https:" : "http:");
+  } catch {}
+  if (!originAllowed) {
+    ws.close(1008, "Invalid signaling origin");
+    return;
+  }
   ws.authPromise = getUser(req).then(user => {
     ws.authUser = user;
     if (!user) ws.close(1008, "Sign in required");
