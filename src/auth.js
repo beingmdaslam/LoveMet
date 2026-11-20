@@ -284,7 +284,7 @@ async function handleAuthRequest(req, res, pathname) {
         client.release();
       }
 
-      const secure = req.socket.encrypted || req.headers["x-forwarded-proto"] === "https";
+      const secure = req.socket.encrypted || String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase() === "https";
       const cookie = `lovemet_session=${encodeURIComponent(sessionToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}${secure ? "; Secure" : ""}`;
       json(res, 200, { ok: true, user: publicUser(user) }, { "Set-Cookie": cookie });
       return true;
