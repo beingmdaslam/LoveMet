@@ -146,7 +146,7 @@
   function connectSignal(roomId) {
     if (!activeCallInvite || (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState))) return;
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-    const nextSocket = new WebSocket(protocol + "//" + location.host + "/signal");
+    const nextSocket = new WebSocket(protocol + "//" + location.host + "/signal?roomId=" + encodeURIComponent(roomId));
     socket = nextSocket;
     nextSocket.onopen = () => {
       if (socket === nextSocket && activeCallInvite) nextSocket.send(JSON.stringify({ type: "join", roomId }));
