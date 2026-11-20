@@ -35,5 +35,6 @@ test("email OTP preflight is read-only and checks the existing identity schema",
   assert.match(sql, /column_name = 'phone_e164' AND is_nullable = 'NO'/i);
   assert.match(sql, /column_name = 'email'/i);
   assert.match(sql, /column_name = 'email_verified_at'/i);
-  assert.doesNotMatch(sql, /\b(?:ALTER|CREATE|DROP|INSERT|UPDATE|DELETE|GRANT|REVOKE)\s+(?:TABLE|INDEX|COLUMN|INTO|SET|ALL|[A-Z])/i);
+  const executableSql = sql.replace(/^\s*--.*$/gm, "");
+  assert.doesNotMatch(executableSql, /\b(?:ALTER|CREATE|DROP|INSERT|UPDATE|DELETE|GRANT|REVOKE)\s+(?:TABLE|INDEX|COLUMN|INTO|SET|ALL|[A-Z])/i);
 });
