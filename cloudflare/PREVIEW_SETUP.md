@@ -12,19 +12,17 @@ This is an operator checklist for the LoveMet Cloudflare preview. It does not de
 
 This backend role can read and write account data across users because the server enforces LoveMet's session and relationship authorization. Its credentials must remain exclusively in Cloudflare Hyperdrive.
 
-## 2. Create Hyperdrive
+## 2. Create and configure Hyperdrive
 
 1. Open the Cloudflare dashboard and select the account that will own the preview Worker.
-2. Open **Workers & Pages → Hyperdrive** and create a Hyperdrive configuration.
+2. Open **Workers & Pages → Hyperdrive** and create/open the LoveMet Hyperdrive configuration.
 3. Use the Supabase project's **Direct connection** PostgreSQL endpoint, database name, and the dedicated `lovemet_worker` login as the origin. Do not use the Supavisor pooled connection; Hyperdrive provides connection pooling.
 4. Keep the connection string private. Do not paste it into chat, GitHub issues, source files, or `.dev.vars.example`.
+5. The Hyperdrive configuration ID has been added to the repository's Wrangler configuration. Confirm the dashboard configuration's origin connection is saved and healthy before preview deployment.
 
-## 3. Bind Hyperdrive to the preview Worker
+## 3. Worker binding
 
-1. Open **Workers & Pages → lovemet-cloudflare-preview → Settings → Bindings**.
-2. Add a **Hyperdrive** binding named exactly `HYPERDRIVE` and select the configuration created above.
-3. Confirm the binding is attached to the preview Worker environment, not an unrelated Worker or production service.
-4. Record the Hyperdrive configuration ID privately for the repository's Wrangler configuration step. Do not commit credentials.
+The repository's `wrangler.jsonc` now declares the `HYPERDRIVE` binding and points it to the supplied Hyperdrive configuration ID. Wrangler will attach this binding when the preview Worker is deployed. Do not create a second binding with a different name. After preview deployment, verify that **Workers & Pages → lovemet-cloudflare-preview → Settings → Bindings** shows `HYPERDRIVE`.
 
 ## 4. Add runtime secrets
 
@@ -39,9 +37,9 @@ Never send secret values in ChatGPT or commit them to Git.
 
 ## 5. Preview verification sequence
 
-After the `HYPERDRIVE` binding and required secrets are configured:
+After the Hyperdrive origin and required secrets are configured:
 
-1. Add the real Hyperdrive ID to the Wrangler binding configuration and review the diff.
+1. Confirm the Hyperdrive ID in `wrangler.jsonc` matches the configuration in Cloudflare.
 2. Run `npm test`, `npm run cf:check`, and `npm run cf:smoke`.
 3. Deploy only to a separate preview Worker after explicit owner approval; do not change DNS or production routes.
 4. Check `/healthz`. It must return HTTP 200 with `ok: true`, `database: connected`, and `schema: ready`.
@@ -53,6 +51,8 @@ After the `HYPERDRIVE` binding and required secrets are configured:
 ## Current state
 
 - The approved email OTP schema migration has been applied and verified on the connected Supabase project.
-- Automated unit tests, Wrangler dry-run, and local Workers smoke tests are passing on the latest code commit.
-- No Hyperdrive binding ID or provider secrets are configured in this repository.
+- The supplied Hyperdrive configuration ID is saved in `wrangler.jsonc`; Wrangler's dry-run confirmed that `env.HYPERDRIVE` resolves to that configuration.
+- All 157 unit tests and the Wrangler dry-run passed on the Hyperdrive-binding commit. Its local smoke test exposed a missing local Hyperdrive emulator URL; the smoke script has now been updated to supply a non-secret, local-only placeholder. CI verification of that fix is pending.
+- The Hyperdrive ID being present in Git does not prove the database origin credentials/connectivity are valid. A live Worker preview check is still required.
+- Provider secrets and live OTP delivery have not been verified.
 - No Cloudflare deployment or DNS change has been performed.
