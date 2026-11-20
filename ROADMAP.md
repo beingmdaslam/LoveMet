@@ -16,7 +16,7 @@ Deployment is intentionally postponed until the application has been implemented
 ## Phase 2 — Accounts and profiles
 - [x] Phone OTP request/verification API foundation (PostgreSQL + Twilio adapter; requires deployment environment credentials and live integration test)
 - [x] Persistent opaque sessions, HttpOnly cookie, logout/revocation and basic process-local rate limits (live deployment verification still pending)
-- [ ] Display name, username, avatar and profile editing
+- [ ] Display name, username, avatar and profile editing (display-name/username API committed; avatar and UI integration remain)
 - [ ] Privacy controls and block/report tools
 
 ## Phase 3 — Contacts and messaging
