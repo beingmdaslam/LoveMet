@@ -7,7 +7,7 @@ function readCookie(request) { for (const part of String(request.headers.get('co
 async function getPhoneIdentity(request, client) {
  const token = readCookie(request); if (!token || token.length > 200) return null;
  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)); const hash = [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
- const result = await client.query('SELECT u.id, u.phone_e164 FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash]);
+ const result = await client.query('SELECT u.id, u.phone_e164, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash]);
  return result.rows[0] || null;
 }
 export async function handleAccountDelete(request, client, env) {
@@ -17,7 +17,8 @@ export async function handleAccountDelete(request, client, env) {
  try {
   await client.query('BEGIN');
   const activeCalls = await client.query("SELECT caller_id, callee_id FROM call_invites WHERE status IN ('ringing','accepted') AND (caller_id = $1 OR callee_id = $1)", [identity.id]);
-  await client.query('DELETE FROM otp_challenges WHERE phone_e164 = $1', [identity.phone_e164]);
+  if (identity.phone_e164) await client.query('DELETE FROM otp_challenges WHERE phone_e164 = $1', [identity.phone_e164]);
+  if (identity.email) await client.query('DELETE FROM email_otp_challenges WHERE email = $1', [identity.email]);
   await client.query('DELETE FROM users WHERE id = $1', [identity.id]);
   await client.query('COMMIT');
   const participants = new Set([identity.id, ...activeCalls.rows.flatMap(row => [row.caller_id, row.callee_id])]);
