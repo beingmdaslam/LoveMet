@@ -45,20 +45,20 @@ function send(ws, payload) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
 }
 
-wss.on("connection", async (ws, req) => {
+wss.on("connection", (ws, req) => {
   ws.roomId = null;
-  try {
-    ws.authUser = await getUser(req);
-  } catch {
+  ws.authPromise = getUser(req).then(user => {
+    ws.authUser = user;
+    if (!user) ws.close(1008, "Sign in required");
+    return user;
+  }).catch(() => {
     ws.close(1011, "Authentication unavailable");
-    return;
-  }
-  if (!ws.authUser) {
-    ws.close(1008, "Sign in required");
-    return;
-  }
+    return null;
+  });
 
   ws.on("message", async (raw) => {
+    const authenticatedUser = await ws.authPromise;
+    if (!authenticatedUser) return;
     let message;
     try {
       message = JSON.parse(raw.toString());
