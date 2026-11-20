@@ -55,6 +55,7 @@ async function isContact(userA, userB) {
     `SELECT 1 FROM contact_requests
      WHERE status = 'accepted'
        AND ((requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1))
+       AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = $2) OR (b.blocker_id = $2 AND b.blocked_id = $1))
      LIMIT 1`,
     [userA, userB]
   );
@@ -62,7 +63,7 @@ async function isContact(userA, userB) {
 }
 
 async function handleSocialRequest(req, res, pathname) {
-  if (!pathname.startsWith("/api/contacts") && !pathname.startsWith("/api/calls") && pathname !== "/api/users/search" && pathname !== "/api/messages") return false;
+  if (!pathname.startsWith("/api/contacts") && !pathname.startsWith("/api/calls") && pathname !== "/api/users/search" && pathname !== "/api/users/report" && pathname !== "/api/messages") return false;
   if (!pool) {
     json(res, 503, { error: "Account service is not configured." });
     return true;
@@ -84,10 +85,97 @@ async function handleSocialRequest(req, res, pathname) {
       }
       const result = await pool.query(
         `SELECT id, username, display_name, avatar_url FROM users
-         WHERE username LIKE $1 AND id <> $2 LIMIT 10`,
+         WHERE username LIKE $1 AND id <> $2
+           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = users.id) OR (b.blocker_id = users.id AND b.blocked_id = $2))
+         LIMIT 10`,
         [term + "%", user.id]
       );
       json(res, 200, { users: result.rows });
+      return true;
+    }
+
+    if (pathname === "/api/contacts/blocks" && req.method === "GET") {
+      const result = await pool.query(
+        `SELECT u.id, u.username, u.display_name, b.created_at
+         FROM user_blocks b JOIN users u ON u.id = b.blocked_id
+         WHERE b.blocker_id = $1 ORDER BY b.created_at DESC LIMIT 100`,
+        [user.id]
+      );
+      json(res, 200, { blocks: result.rows });
+      return true;
+    }
+
+    if (pathname === "/api/contacts/block" && req.method === "POST") {
+      const body = await readJson(req);
+      const targetId = String(body.userId || "");
+      if (!/^[0-9a-f-]{36}$/i.test(targetId) || targetId === user.id) {
+        json(res, 400, { error: "Provide a valid user to block." });
+        return true;
+      }
+      const target = await pool.query("SELECT id FROM users WHERE id = $1", [targetId]);
+      if (!target.rowCount) {
+        json(res, 404, { error: "User not found." });
+        return true;
+      }
+      await pool.query(
+        "INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        [user.id, targetId]
+      );
+      await pool.query(
+        `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
+         WHERE status IN ('ringing','accepted')
+           AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
+        [user.id, targetId]
+      );
+      json(res, 200, { ok: true });
+      return true;
+    }
+
+    if (pathname === "/api/contacts/unblock" && req.method === "POST") {
+      const body = await readJson(req);
+      const targetId = String(body.userId || "");
+      if (!/^[0-9a-f-]{36}$/i.test(targetId)) {
+        json(res, 400, { error: "Provide a valid user to unblock." });
+        return true;
+      }
+      const result = await pool.query(
+        "DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2 RETURNING blocked_id",
+        [user.id, targetId]
+      );
+      json(res, 200, { ok: true, unblocked: result.rowCount > 0 });
+      return true;
+    }
+
+    if (pathname === "/api/users/report" && req.method === "POST") {
+      const body = await readJson(req);
+      const targetId = String(body.userId || "");
+      const reason = String(body.reason || "");
+      const details = String(body.details || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(targetId) || targetId === user.id ||
+          !["harassment","spam","impersonation","inappropriate","other"].includes(reason) ||
+          details.length < 1 || details.length > 1000) {
+        json(res, 400, { error: "Provide a user, report reason, and details up to 1000 characters." });
+        return true;
+      }
+      const recent = await pool.query(
+        "SELECT COUNT(*)::INTEGER AS total FROM user_reports WHERE reporter_id = $1 AND created_at > NOW() - INTERVAL '24 hours'",
+        [user.id]
+      );
+      if (recent.rows[0].total >= 5) {
+        json(res, 429, { error: "Daily report limit reached." });
+        return true;
+      }
+      const target = await pool.query("SELECT id FROM users WHERE id = $1", [targetId]);
+      if (!target.rowCount) {
+        json(res, 404, { error: "User not found." });
+        return true;
+      }
+      const report = await pool.query(
+        `INSERT INTO user_reports (reporter_id, reported_id, reason, details)
+         VALUES ($1, $2, $3, $4) RETURNING id, status, created_at`,
+        [user.id, targetId, reason, details]
+      );
+      json(res, 201, { report: report.rows[0] });
       return true;
     }
 
@@ -97,6 +185,7 @@ async function handleSocialRequest(req, res, pathname) {
          FROM contact_requests c
          JOIN users u ON u.id = CASE WHEN c.requester_id = $1 THEN c.recipient_id ELSE c.requester_id END
          WHERE c.status = 'accepted' AND (c.requester_id = $1 OR c.recipient_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = u.id) OR (b.blocker_id = u.id AND b.blocked_id = $1))
          ORDER BY u.username NULLS LAST, u.display_name NULLS LAST`,
         [user.id]
       );
