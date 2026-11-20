@@ -225,6 +225,15 @@ async function handleSocialRequest(req, res, pathname) {
            AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
         [user.id, contactId]
       );
+      const recentCalls = await pool.query(
+        `SELECT COUNT(*)::INTEGER AS total FROM call_invites
+         WHERE caller_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
+        [user.id]
+      );
+      if (recentCalls.rows[0].total >= 20) {
+        json(res, 429, { error: "Call invitation limit reached. Try again later." });
+        return true;
+      }
       const active = await pool.query(
         `SELECT id FROM call_invites
          WHERE status IN ('ringing','accepted') AND expires_at > NOW()
