@@ -173,6 +173,7 @@ export default {
       return unavailable("API");
     }
     if (pathname === "/healthz") {
+      if (!env.USER_EVENTS || !env.CALL_ROOMS) return unavailable("backend");
       try {
         await withDatabase(env, client => client.query("SELECT 1 AS ok"));
         return new Response(JSON.stringify({ ok: true, database: "connected" }), {
