@@ -1,7 +1,7 @@
 const crypto = require("node:crypto");
 const { Pool } = require("pg");
 const {
-  OTP_TTL_MS, normalizePhone, createOtp, hashOtp, verifyOtp,
+  normalizePhone, createOtp, hashOtp, verifyOtp,
   createSessionToken, hashSessionToken
 } = require("./security");
 
@@ -105,7 +105,9 @@ function readCookie(req, name) {
   for (const part of cookies) {
     const index = part.indexOf("=");
     if (index < 0) continue;
-    if (part.slice(0, index).trim() === name) return decodeURIComponent(part.slice(index + 1).trim());
+    if (part.slice(0, index).trim() === name) {
+      try { return decodeURIComponent(part.slice(index + 1).trim()); } catch { return ""; }
+    }
   }
   return "";
 }
@@ -172,7 +174,11 @@ async function handleAuthRequest(req, res, pathname) {
 
     if (pathname === "/api/auth/verify-otp" && req.method === "POST") {
       const body = await readJson(req);
-      const phone = normalizePhone(body.phone);
+      const phone = parsePhone(body.phone);
+      if (!process.env.OTP_HASH_SECRET || process.env.OTP_HASH_SECRET.length < 32) {
+        json(res, 503, { error: "OTP service is not configured." });
+        return true;
+      }
       const code = String(body.code || "");
       if (!/^\\d{6}$/.test(code)) {
         json(res, 400, { error: "Enter the six-digit verification code." });
