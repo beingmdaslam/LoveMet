@@ -172,25 +172,41 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 400, { error: "Provide a user, report reason, and details up to 1000 characters." });
         return true;
       }
-      const recent = await pool.query(
-        "SELECT COUNT(*)::INTEGER AS total FROM user_reports WHERE reporter_id = $1 AND created_at > NOW() - INTERVAL '24 hours'",
-        [user.id]
-      );
-      if (recent.rows[0].total >= 5) {
-        json(res, 429, { error: "Daily report limit reached." });
-        return true;
-      }
       const target = await pool.query("SELECT id FROM users WHERE id = $1", [targetId]);
       if (!target.rowCount) {
         json(res, 404, { error: "User not found." });
         return true;
       }
-      const report = await pool.query(
-        `INSERT INTO user_reports (reporter_id, reported_id, reason, details)
-         VALUES ($1, $2, $3, $4) RETURNING id, status, created_at`,
-        [user.id, targetId, reason, details]
-      );
-      json(res, 201, { report: report.rows[0] });
+      // Serialize a reporter's submissions so concurrent requests cannot bypass the daily cap.
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 1))",
+          [user.id]
+        );
+        const recent = await client.query(
+          "SELECT COUNT(*)::INTEGER AS total FROM user_reports WHERE reporter_id = $1 AND created_at > NOW() - INTERVAL '24 hours'",
+          [user.id]
+        );
+        if (recent.rows[0].total >= 5) {
+          await client.query("ROLLBACK");
+          json(res, 429, { error: "Daily report limit reached." });
+          return true;
+        }
+        const report = await client.query(
+          `INSERT INTO user_reports (reporter_id, reported_id, reason, details)
+           VALUES ($1, $2, $3, $4) RETURNING id, status, created_at`,
+          [user.id, targetId, reason, details]
+        );
+        await client.query("COMMIT");
+        json(res, 201, { report: report.rows[0] });
+      } catch (error) {
+        try { await client.query("ROLLBACK"); } catch {}
+        throw error;
+      } finally {
+        client.release();
+      }
       return true;
     }
 
