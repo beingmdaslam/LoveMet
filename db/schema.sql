@@ -76,6 +76,9 @@ CREATE TABLE IF NOT EXISTS call_invites (
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '60 seconds'),
   CHECK (caller_id <> callee_id)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS call_invites_one_active_pair_idx
+  ON call_invites (LEAST(caller_id, callee_id), GREATEST(caller_id, callee_id))
+  WHERE status IN ('ringing','accepted');
 CREATE INDEX IF NOT EXISTS call_invites_callee_status_idx
   ON call_invites (callee_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS call_invites_caller_status_idx
