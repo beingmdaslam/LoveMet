@@ -24,7 +24,7 @@ function assertOtpSecret(secret) {
 
 async function hashOtp(phone, otp, secret) {
   assertOtpSecret(secret);
-  if (!/^\\d{6}$/.test(String(otp || ""))) throw new Error("OTP must contain exactly six digits.");
+  if (!/^\d{6}$/.test(String(otp || ""))) throw new Error("OTP must contain exactly six digits.");
   const salt = crypto.randomBytes(16);
   const value = await scrypt(`${normalizePhone(phone)}:${otp}:${secret}`, salt, 64);
   return `${salt.toString("hex")}:${value.toString("hex")}`;
