@@ -329,3 +329,12 @@ test("search, contact requests, call invitations and message sends have shared a
   assert.ok(social.includes("allowRequest(`call-invite:${user.id}`, 10, 60 * 60 * 1000)"));
   assert.ok(social.includes("allowRequest(`message-send:${user.id}`, 60, 60 * 1000)"));
 });
+
+test("health endpoint checks database readiness without exposing secrets", () => {
+  const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+  assert.match(server, /pathname === "\/healthz" && req\.method === "GET"/);
+  assert.match(server, /await pool\.query\("SELECT 1"\)/);
+  assert.match(server, /database: "connected"/);
+  assert.match(server, /database: "unavailable"/);
+  assert.doesNotMatch(server.slice(server.indexOf('pathname === "/healthz"'), server.indexOf("const requested")), /DATABASE_URL|OTP_HASH_SECRET|TWILIO_AUTH_TOKEN/);
+});
