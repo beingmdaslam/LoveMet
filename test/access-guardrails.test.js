@@ -167,3 +167,25 @@ test("accepting a call invitation shares the block pair lock", () => {
   assert.match(accept, /await client\.query\("COMMIT"\)/);
   assert.match(accept, /client\.release\(\)/);
 });
+
+
+test("accepting contact requests shares the block pair lock", () => {
+  const route = social.slice(social.indexOf('pathname === "/api/contacts/respond"'), social.indexOf('pathname === "/api/calls/config"'));
+  assert.match(route, /if \(action === "accept"\)/);
+  assert.match(route, /SELECT requester_id FROM contact_requests/);
+  assert.match(route, /pg_advisory_xact_lock\(hashtextextended/);
+  assert.match(route, /FROM user_blocks b/);
+  assert.match(route, /await client\.query\("COMMIT"\)/);
+  assert.match(route, /client\.release\(\)/);
+});
+
+test("message creation rechecks contact and block state under the shared pair lock", () => {
+  const route = social.slice(social.indexOf('if (pathname === "/api/messages" && req.method === "POST")'));
+  assert.match(route, /await client\.query\("BEGIN"\)/);
+  assert.match(route, /pg_advisory_xact_lock\(hashtextextended/);
+  assert.match(route, /const stillContact = await client\.query/);
+  assert.match(route, /FROM user_blocks b/);
+  assert.match(route, /INSERT INTO messages/);
+  assert.match(route, /await client\.query\("COMMIT"\)/);
+  assert.match(route, /client\.release\(\)/);
+});
