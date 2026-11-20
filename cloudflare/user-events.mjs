@@ -40,7 +40,7 @@ export class UserEvents {
   for (const ws of this.ctx.getWebSockets()) {
    const attachment = ws.deserializeAttachment(); if (!attachment) { ws.close(1008, 'Missing session'); continue; }
    try {
-    const result = await withDatabase(this.env, client => client.query('SELECT 1 FROM sessions WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1', [attachment.tokenHash, attachment.userId]));
+    const result = await this.database(this.env, client => client.query('SELECT 1 FROM sessions WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1', [attachment.tokenHash, attachment.userId]));
     if (!result.rowCount) { ws.close(1008, 'Session expired'); continue; }
     attachment.failures = 0; ws.serializeAttachment(attachment); next = true;
    } catch {
