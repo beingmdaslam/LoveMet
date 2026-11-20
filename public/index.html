@@ -80,7 +80,7 @@
     const protocol=location.protocol==="https:"?"wss:":"ws:";
     chatSocket=new WebSocket(protocol+"//"+location.host+"/chat");
     chatSocket.onopen=()=>{chatReconnectDelay=1000;say("chatStatus","Live chat connected.");};
-    chatSocket.onmessage=event=>{try{const data=JSON.parse(event.data);if(data.type==="message"&&data.message){const m=data.message;if(selected===m.sender_id||selected===m.recipient_id)appendLiveMessage(m);return;}if(data.type==="read"&&selected===data.contactId){for(const node of $("chatLog").children){if(data.messageIds.includes(node.dataset.messageId)){const state=node.querySelector("small");if(state)state.textContent=" · Seen";}}return;}if(data.type==="call-update"){refreshCalls();callHistory();}}catch{}};
+    chatSocket.onmessage=event=>{try{const data=JSON.parse(event.data);if(data.type==="message"&&data.message){const m=data.message;if(selected===m.sender_id||selected===m.recipient_id)appendLiveMessage(m);return;}if(data.type==="read"&&selected===data.contactId){for(const node of $("chatLog").children){if(data.messageIds.includes(node.dataset.messageId)){const state=node.querySelector("small");if(state)state.textContent=" · Seen";}}return;}if(data.type==="call-update"){refreshCalls();callHistory();return;}if(data.type==="contact-update"){contacts();requests();return;}}catch{}};
     chatSocket.onclose=()=>{chatSocket=null;if(!currentUserId)return;window.clearTimeout(chatReconnectTimer);chatReconnectTimer=window.setTimeout(connectChatSocket,chatReconnectDelay);chatReconnectDelay=Math.min(chatReconnectDelay*2,30000);};
     chatSocket.onerror=()=>{if(chatSocket)chatSocket.close();};
   }
