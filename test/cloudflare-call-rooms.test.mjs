@@ -154,3 +154,19 @@ test('call room keeps the earliest reconnect expiry alarm when both peers discon
  assert.ok(values.has('reconnect:' + roomId + ':u1'));
  assert.ok(values.has('reconnect:' + roomId + ':u2'));
 });
+
+test('call room alarm removes only expired reconnect members and schedules the next expiry', async () => {
+ const { room, values, alarm } = setup();
+ const expiredAt = Date.now() - 1;
+ const laterExpiry = Date.now() + 15000;
+ values.set('reconnect:' + roomId + ':u1', { isInitiator: true, expiresAt: expiredAt });
+ values.set('member:' + roomId + ':u1', { userId: 'u1', connected: false, expiresAt: expiredAt });
+ values.set('reconnect:' + roomId + ':u2', { isInitiator: false, expiresAt: laterExpiry });
+ values.set('member:' + roomId + ':u2', { userId: 'u2', connected: false, expiresAt: laterExpiry });
+ await room.alarm();
+ assert.equal(values.has('reconnect:' + roomId + ':u1'), false);
+ assert.equal(values.has('member:' + roomId + ':u1'), false);
+ assert.equal(values.has('reconnect:' + roomId + ':u2'), true);
+ assert.equal(values.has('member:' + roomId + ':u2'), true);
+ assert.equal(alarm, laterExpiry);
+});
