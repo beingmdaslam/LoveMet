@@ -7,7 +7,7 @@ const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Cont
 const MAX_BODY_BYTES = 8192; const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 function json(status, body, extra = {}) { return new Response(JSON.stringify(body), { status, headers: { ...HEADERS, ...extra } }); }
 function sameOrigin(request) { try { const origin = request.headers.get('origin'); return Boolean(origin) && new URL(origin).origin === new URL(request.url).origin; } catch { return false; } }
-function normalizeEmail(value) { const email = String(value || '').trim().toLowerCase(); if (email.length > 254 || !/^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(email)) throw Object.assign(new Error('Enter a valid email address.'), { status: 400 }); return email; }
+function normalizeEmail(value) { const email = String(value || '').trim().toLowerCase(); if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw Object.assign(new Error('Enter a valid email address.'), { status: 400 }); return email; }
 function normalizePhone(value) { const phone = String(value || '').replace(/[\s()-]/g, ''); if (!/^\+[1-9]\d{7,14}$/.test(phone)) throw Object.assign(new Error('Phone number must use international E.164 format.'), { status: 400 }); return phone; }
 function hashSession(token) { return createHash('sha256').update(String(token)).digest('hex'); }
 function readCookie(request, name) { for (const part of String(request.headers.get('cookie') || '').split(';')) { const i = part.indexOf('='); if (i < 0 || part.slice(0, i).trim() !== name) continue; try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return ''; } } return ''; }
@@ -58,7 +58,7 @@ export async function handleOtpAndLogout(request, client, env, fetcher = fetch) 
   }
   if (pathname === '/api/auth/verify-email-otp') {
    const body = await readJson(request); const email = normalizeEmail(body.email); assertSecret(env?.OTP_HASH_SECRET); const code = String(body.code || '');
-   if (!/^\\d{6}$/.test(code)) return json(400, { error: 'Enter the six-digit verification code.' });
+   if (!/^\d{6}$/.test(code)) return json(400, { error: 'Enter the six-digit verification code.' });
    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
    if (!(await allowRequest(client, env.OTP_HASH_SECRET, 'email-verify-ip:' + ip, 20, 900000)) || !(await allowRequest(client, env.OTP_HASH_SECRET, 'email-verify:' + email, 8, 900000))) return json(429, { error: 'Too many attempts. Request a new code later.' });
    await client.query('BEGIN');
