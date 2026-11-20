@@ -63,6 +63,11 @@ The mobile interface now includes username search, contact requests, accepted co
 - WebSocket signaling requires a valid LoveMet session and an accepted invitation; room IDs are invitation UUIDs, not user-chosen room codes.
 - The invitation table is protected by RLS and has no anon/authenticated table grants. Live two-device testing and TURN configuration remain required.
 
+## User safety
+- `POST /api/contacts/block` and `POST /api/contacts/unblock` manage user blocks; blocked users cannot access each other's contacts-only messaging or call invitations.
+- `GET /api/contacts/blocks` lists accounts you have blocked.
+- `POST /api/users/report` submits a categorized report with details. Reports are stored for operator review; a staffed moderation workflow is still required.
+
 ## Account deletion
 - `DELETE /api/account` deletes the authenticated account and cascades its contacts, messages, sessions, and call history; OTP challenges for the phone number are deleted in the same transaction.
 
