@@ -19,6 +19,10 @@
       {
         "name": "CALL_ROOMS",
         "class_name": "CallRooms"
+      },
+      {
+        "name": "USER_EVENTS",
+        "class_name": "UserEvents"
       }
     ]
   },
@@ -27,6 +31,12 @@
       "tag": "v1",
       "new_sqlite_classes": [
         "CallRooms"
+      ]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": [
+        "UserEvents"
       ]
     }
   ]
