@@ -10,6 +10,7 @@ import { handleModeration } from "./moderation.mjs";
 import { handleOtpAndLogout } from "./otp.mjs";
 import { handleAccountDelete } from "./account.mjs";
 import { handleCallMutation } from "./call-mutations.mjs";
+export { CallRooms } from "./call-rooms.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
