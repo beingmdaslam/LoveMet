@@ -73,3 +73,8 @@ These are quotas, not a promise that every production traffic level will remain 
 - Do not weaken authentication, origin validation, per-user rate limits, blocking, reporting, account deletion or database RLS during migration.
 - Keep the existing Node server working until the Worker implementation passes equivalent automated and integration tests.
 - No production cutover until HTTPS, database connectivity, OTP delivery, TURN, two-device calls, privacy/legal review and rollback procedures are verified.
+
+
+## Operator setup guide
+
+See [`PREVIEW_SETUP.md`](./PREVIEW_SETUP.md) for the step-by-step Cloudflare Hyperdrive binding, secret configuration, and preview verification checklist. This guide does not authorize deployment or production routing changes.
