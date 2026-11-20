@@ -51,7 +51,7 @@ All routes below require a valid LoveMet session cookie:
 - `GET /api/messages?contactId=...` reads the latest 50 messages with an accepted contact.
 - `POST /api/messages` with `{"contactId":"...","message":"Hello"}` sends a text message to an accepted contact.
 
-The mobile interface now includes username search, contact requests, accepted contacts, and one-to-one text chat. Chat refreshes every four seconds while the page is visible; basic delivery/read timestamps are included. Push-based real-time delivery, message pagination, stronger abuse controls, and live database integration tests remain outstanding.
+The mobile interface now includes username search, contact requests, accepted contacts, and one-to-one text chat. Chat uses an authenticated same-origin WebSocket for immediate message delivery and read receipts, with a three-second HTTP refresh fallback while the page is visible if the live socket is unavailable. Message history is cursor-paginated. Stronger abuse controls and live database integration tests remain outstanding.
 
 
 ## Authenticated call invitations
