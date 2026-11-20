@@ -1,5 +1,6 @@
 import { getSessionUser } from './auth.mjs';
 import { allowRequest } from './rate-limit.mjs';
+import { publishUserEvent } from './user-events.mjs';
 const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const UUID = /^[0-9a-f-]{36}$/i;
 function json(status, body) { return new Response(JSON.stringify(body), { status, headers: HEADERS }); }
@@ -34,25 +35,30 @@ export async function handleContactMutation(request, client, env) {
     const existing = await client.query("SELECT id, status FROM contact_requests WHERE ((requester_id = $1 AND recipient_id = $2) OR (requester_id = $2 AND recipient_id = $1)) AND status IN ('pending','accepted') LIMIT 1", [user.id, targetId]);
     if (existing.rowCount) { await client.query('ROLLBACK'); return json(409, { error: existing.rows[0].status === 'accepted' ? 'These accounts are already contacts.' : 'A pending request already exists between these accounts.' }); }
     const created = await client.query('INSERT INTO contact_requests (requester_id, recipient_id) VALUES ($1, $2) RETURNING id, status, created_at', [user.id, targetId]);
-    await client.query('COMMIT'); return json(201, { request: created.rows[0] });
+    await client.query('COMMIT');
+    await publishUserEvent(env, targetId, { type: 'contact-update' });
+    return json(201, { request: created.rows[0] });
    } catch (error) { try { await client.query('ROLLBACK'); } catch {} if (error.code === '23505') return json(409, { error: 'A request already exists between these accounts.' }); throw error; }
   }
   if (pathname === '/api/contacts/respond') {
    const requestId = String(body.requestId || ''); const action = String(body.action || '');
    if (!UUID.test(requestId) || !['accept', 'decline'].includes(action)) return json(400, { error: 'Provide a valid requestId and accept or decline action.' });
    if (action === 'decline') {
-    const result = await client.query("UPDATE contact_requests SET status = 'declined', updated_at = NOW() WHERE id = $1 AND recipient_id = $2 AND status = 'pending' RETURNING id, status", [requestId, user.id]);
+    const result = await client.query("UPDATE contact_requests SET status = 'declined', updated_at = NOW() WHERE id = $1 AND recipient_id = $2 AND status = 'pending' RETURNING id, status, requester_id", [requestId, user.id]);
     if (!result.rowCount) return json(404, { error: 'Pending contact request not found.' });
-    return json(200, { request: result.rows[0] });
+    await publishUserEvent(env, result.rows[0].requester_id, { type: 'contact-update' });
+    return json(200, { request: { id: result.rows[0].id, status: result.rows[0].status } });
    }
    await client.query('BEGIN');
    try {
     const pending = await client.query("SELECT requester_id FROM contact_requests WHERE id = $1 AND recipient_id = $2 AND status = 'pending'", [requestId, user.id]);
     if (!pending.rowCount) { await client.query('ROLLBACK'); return json(404, { error: 'Pending contact request not found.' }); }
     await pairLock(client, pending.rows[0].requester_id, user.id);
-    const result = await client.query("UPDATE contact_requests SET status = 'accepted', updated_at = NOW() WHERE id = $1 AND recipient_id = $2 AND status = 'pending' AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = contact_requests.requester_id) OR (b.blocker_id = contact_requests.requester_id AND b.blocked_id = $2)) RETURNING id, status", [requestId, user.id]);
+    const result = await client.query("UPDATE contact_requests SET status = 'accepted', updated_at = NOW() WHERE id = $1 AND recipient_id = $2 AND status = 'pending' AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = contact_requests.requester_id) OR (b.blocker_id = contact_requests.requester_id AND b.blocked_id = $2)) RETURNING id, status, requester_id", [requestId, user.id]);
     if (!result.rowCount) { await client.query('ROLLBACK'); return json(404, { error: 'Pending contact request not found.' }); }
-    await client.query('COMMIT'); return json(200, { request: result.rows[0] });
+    await client.query('COMMIT');
+    await Promise.all([publishUserEvent(env, result.rows[0].requester_id, { type: 'contact-update' }), publishUserEvent(env, user.id, { type: 'contact-update' })]);
+    return json(200, { request: { id: result.rows[0].id, status: result.rows[0].status } });
    } catch (error) { try { await client.query('ROLLBACK'); } catch {} throw error; }
   }
   return json(404, { error: 'Unknown contact mutation endpoint.' });
