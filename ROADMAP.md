@@ -14,8 +14,8 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Call permission and device compatibility testing
 
 ## Phase 2 — Accounts and profiles
-- [ ] Phone-number registration and OTP verification
-- [ ] Secure sessions, logout, account recovery and rate limits
+- [ ] Phone-number registration and OTP verification (security primitives and initial PostgreSQL schema committed; delivery/API flow still pending)
+- [ ] Secure sessions, logout, account recovery and rate limits (token primitives committed; persistent session flow and rate limits still pending)
 - [ ] Display name, username, avatar and profile editing
 - [ ] Privacy controls and block/report tools
 
