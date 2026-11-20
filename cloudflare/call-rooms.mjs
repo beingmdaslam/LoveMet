@@ -28,6 +28,7 @@ export class CallRooms {
   if (size > MAX_SIGNAL_BYTES) { ws.close(1009, 'Signaling message too large'); return; }
   let message; try { message = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { send(ws, { type: 'error', message: 'Invalid message format.' }); return; }
   if (message.type === 'join') {
+   if (attachment.joined) { send(ws, { type: 'error', message: 'You are already in a room.' }); return; }
    const roomId = String(message.roomId || '').trim(); if (!UUID.test(roomId)) { send(ws, { type: 'error', message: 'Join using a valid accepted call invitation.' }); return; }
    let permission; try { permission = await this.authorize(attachment, roomId); } catch { ws.close(1011, 'Call authorization unavailable'); return; }
    if (!permission.rowCount) { ws.close(1008, 'Call invitation is not authorized'); return; }
