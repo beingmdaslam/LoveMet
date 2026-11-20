@@ -16,10 +16,15 @@ function createOtp() {
   return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 
-async function hashOtp(phone, otp, secret) {
+function assertOtpSecret(secret) {
   if (!secret || String(secret).length < 32) {
     throw new Error("OTP_HASH_SECRET must contain at least 32 characters.");
   }
+}
+
+async function hashOtp(phone, otp, secret) {
+  assertOtpSecret(secret);
+  if (!/^\\d{6}$/.test(String(otp || ""))) throw new Error("OTP must contain exactly six digits.");
   const salt = crypto.randomBytes(16);
   const value = await scrypt(`${normalizePhone(phone)}:${otp}:${secret}`, salt, 64);
   return `${salt.toString("hex")}:${value.toString("hex")}`;
