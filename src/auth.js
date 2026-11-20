@@ -227,6 +227,11 @@ async function handleAuthRequest(req, res, pathname) {
       let user;
       try {
         await client.query("BEGIN");
+        // Coordinate verification with OTP issuance so a superseded code cannot win a race.
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 3))",
+          [phone]
+        );
         const challengeResult = await client.query(
           `SELECT id, code_hash, attempts FROM otp_challenges
            WHERE phone_e164 = $1 AND consumed_at IS NULL AND expires_at > NOW()
