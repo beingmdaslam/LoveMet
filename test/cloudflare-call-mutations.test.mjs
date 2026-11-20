@@ -10,7 +10,7 @@ function db({ busy = false, invite = true, accepted = true } = {}) { const calls
  if (sql.includes('SELECT id FROM call_invites')) return { rowCount: busy ? 1 : 0, rows: busy ? [{ id: 'busy' }] : [] };
  if (sql.includes('SELECT caller_id, callee_id FROM call_invites')) return { rowCount: invite ? 1 : 0, rows: invite ? [{ caller_id: 'u2', callee_id: 'u1' }] : [] };
  if (sql.includes('INSERT INTO call_invites')) return { rowCount: 1, rows: [{ id: 'new-invite', caller_id: 'u1', callee_id: 'u2', status: 'ringing' }] };
- if (sql.includes('UPDATE call_invites') && sql.includes('RETURNING')) return { rowCount: invite ? 1 : 0, rows: invite ? [{ id: 'invite1', caller_id: 'u2', callee_id: 'u1', status: 'accepted', expires_at: '2026-11-20T16:00:00Z' }] : [] };
+ if (sql.includes('UPDATE call_invites') && sql.includes('RETURNING')) return { rowCount: invite && accepted ? 1 : 0, rows: invite && accepted ? [{ id: 'invite1', caller_id: 'u2', callee_id: 'u1', status: 'accepted', expires_at: '2026-11-20T16:00:00Z' }] : [] };
  return { rowCount: 0, rows: [] }; } }; }
 function req(path, body) { return new Request('https://lovemet.example' + path, { method: 'POST', headers: { origin: 'https://lovemet.example', cookie: 'lovemet_session=' + token, 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
 test('call invitation requires an accepted contact and serializes both participants', async () => {
