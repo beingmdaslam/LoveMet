@@ -8,11 +8,13 @@ function addClient(userId, socket) {
     sockets = new Set();
     clients.set(userId, sockets);
   }
+  if (sockets.size >= 5) return false;
   sockets.add(socket);
   socket.once("close", () => {
     sockets.delete(socket);
     if (!sockets.size) clients.delete(userId);
   });
+  return true;
 }
 
 function publishReadReceipt(senderId, recipientId, messageIds, readAt) {
