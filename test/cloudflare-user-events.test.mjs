@@ -19,3 +19,9 @@ test('chat sockets are receive-only and are closed if a client sends a frame', a
 test('event room refuses non-WebSocket external requests', async () => {
  const { room } = setup(); const response = await room.fetch(new Request('https://internal.lovemet/chat')); assert.equal(response.status, 426);
 });
+test('event room accepts session-ended notifications from trusted server handlers', async () => {
+ const { room, sockets } = setup(); const socket = new Socket(); sockets.push(socket);
+ const response = await room.fetch(new Request('https://internal.lovemet/publish', { method: 'POST', body: JSON.stringify({ type: 'session-ended' }) }));
+ assert.equal(response.status, 200);
+ assert.deepEqual(socket.sent, [{ type: 'session-ended' }]);
+});
