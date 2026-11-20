@@ -46,7 +46,7 @@ export class CallRooms {
     const reconnected = Boolean(existing && (( !existing.connected && existing.expiresAt > Date.now()) || (existing.connected && !existingSocketOpen)));
     const others = [...entries.entries()].filter(([key, value]) => key !== memberKey && (value.connected || value.expiresAt > Date.now()));
     if (others.length >= 2) return { error: 'full' };
-    if (existing && !reconnected) await txn.delete(memberKey);
+    if (existing && !reconnected) { await txn.delete(memberKey); await txn.delete(reconnectKey); }
     const isInitiator = reconnected ? Boolean(existing.isInitiator) : others.length === 0;
     await txn.put(memberKey, { userId: attachment.userId, socketId: attachment.socketId, isInitiator, connected: true, expiresAt: null });
     if (reconnected) await txn.delete(reconnectKey);
