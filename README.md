@@ -51,7 +51,7 @@ All routes below require a valid LoveMet session cookie:
 - `GET /api/messages?contactId=...` reads the latest 50 messages with an accepted contact.
 - `POST /api/messages` with `{"contactId":"...","message":"Hello"}` sends a text message to an accepted contact.
 
-These are backend endpoints only; the mobile interface, real-time message delivery, pagination, read receipts, abuse controls, and live database integration tests are still outstanding.
+The mobile interface now includes username search, contact requests, accepted contacts, and one-to-one text chat. Chat refreshes every four seconds while the page is visible; basic delivery/read timestamps are included. Push-based real-time delivery, message pagination, stronger abuse controls, and live database integration tests remain outstanding.
 
 
 ## Supabase database status
