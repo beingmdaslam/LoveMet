@@ -1,4 +1,5 @@
 const { pool } = require("./auth");
+const { isSameOriginRequest } = require("./security");
 const { publishUser, publishMessage, publishReadReceipt } = require("./realtime");
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -78,6 +79,10 @@ async function handleSocialRequest(req, res, pathname) {
   }
 
   try {
+    if (["POST", "PATCH", "DELETE"].includes(req.method) && !isSameOriginRequest(req)) {
+      json(res, 403, { error: "Cross-origin request blocked." });
+      return true;
+    }
     const user = await getUser(req);
     if (!user) {
       json(res, 401, { error: "Sign in to continue." });
