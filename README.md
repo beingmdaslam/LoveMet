@@ -63,7 +63,7 @@ The mobile interface now includes username search, contact requests, accepted co
 - The invitation table is protected by RLS and has no anon/authenticated table grants. Live two-device testing and TURN configuration remain required.
 
 ## Supabase database status
-The LoveMet Supabase project contains the five core tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, and `messages`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
+The LoveMet Supabase project contains the six core tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, `messages`, and `call_invites`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
 
 Before live integration, configure these server-side environment variables in the hosting platform:
 - `DATABASE_URL`: Supabase PostgreSQL connection string (use the provider-recommended pooler if direct connectivity is unavailable).
