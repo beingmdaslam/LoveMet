@@ -199,3 +199,9 @@ test("OTP issuance serializes per phone and delivers only the current challenge"
   assert.match(requestRoute, /await client\.query\("COMMIT"\)/);
   assert.match(requestRoute, /client\.release\(\)/);
 });
+
+
+test("OTP verification shares the per-phone issuance lock before reading a challenge", () => {
+  const verifyRoute = auth.slice(auth.indexOf('pathname === "/api/auth/verify-otp"'), auth.indexOf('pathname === "/api/auth/me"'));
+  assert.match(verifyRoute, /BEGIN[\s\S]*pg_advisory_xact_lock\(hashtextextended\(\$1::text, 3\)\)[\s\S]*SELECT id, code_hash, attempts FROM otp_challenges[\s\S]*FOR UPDATE/);
+});
