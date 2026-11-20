@@ -58,7 +58,7 @@ wss.on("connection", async (ws, req) => {
     return;
   }
 
-  ws.on("message", (raw) => {
+  ws.on("message", async (raw) => {
     let message;
     try {
       message = JSON.parse(raw.toString());
@@ -102,6 +102,10 @@ wss.on("connection", async (ws, req) => {
       if (!room) {
         room = new Set();
         rooms.set(roomId, room);
+      }
+      if ([...room].some(peer => peer.authUser && peer.authUser.id === ws.authUser.id)) {
+        send(ws, { type: "error", message: "This account is already connected to the call." });
+        return;
       }
       if (room.size >= 2) {
         send(ws, { type: "error", message: "This room is full." });
