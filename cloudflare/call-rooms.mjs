@@ -34,22 +34,30 @@ export class CallRooms {
   if (message.type === 'join') {
    if (attachment.joined) { send(ws, { type: 'error', message: 'You are already in a room.' }); return; }
    const roomId = String(message.roomId || '').trim(); if (!UUID.test(roomId) || roomId !== attachment.expectedRoomId) { send(ws, { type: 'error', message: 'Join using a valid accepted call invitation.' }); return; }
-   const joinRoom = async () => {
-    let permission; try { permission = await this.authorize(attachment, roomId); } catch { ws.close(1011, 'Call authorization unavailable'); return; }
-    if (!permission.rowCount) { ws.close(1008, 'Call invitation is not authorized'); return; }
-    const sockets = this.ctx.getWebSockets(); const peers = sockets.filter(peer => peer !== ws && (peer.deserializeAttachment()?.joined) && peer.deserializeAttachment()?.roomId === roomId);
-    if (peers.some(peer => peer.deserializeAttachment()?.userId === attachment.userId)) { send(ws, { type: 'error', message: 'This account is already connected to the call.' }); return; }
-    if (peers.length >= 2) { send(ws, { type: 'error', message: 'This room is full.' }); return; }
-    const reconnectKey = 'reconnect:' + roomId + ':' + attachment.userId; const reconnect = await this.ctx.storage.get(reconnectKey);
-    const reconnected = Boolean(reconnect && reconnect.expiresAt > Date.now());
-    if (reconnect) await this.ctx.storage.delete(reconnectKey);
-    const isInitiator = reconnected ? Boolean(reconnect.isInitiator) : peers.length === 0;
-    const next = { ...attachment, roomId, joined: true, isInitiator }; ws.serializeAttachment(next);
-    send(ws, { type: 'joined', roomId, isInitiator, ...(reconnected ? { reconnected: true } : {}) });
-    if (peers.length) { for (const peer of peers) send(peer, { type: reconnected ? 'peer-rejoined' : 'peer-joined' }); if (reconnected) send(ws, { type: 'peer-rejoined' }); }
-   };
-   if (typeof this.ctx.blockConcurrencyWhile === 'function') await this.ctx.blockConcurrencyWhile(joinRoom);
-   else await joinRoom();
+   let permission; try { permission = await this.authorize(attachment, roomId); } catch { ws.close(1011, 'Call authorization unavailable'); return; }
+   if (!permission.rowCount) { ws.close(1008, 'Call invitation is not authorized'); return; }
+   const memberKey = 'member:' + roomId + ':' + attachment.userId;
+   const reconnectKey = 'reconnect:' + roomId + ':' + attachment.userId;
+   const membership = await this.ctx.storage.transaction(async txn => {
+    const entries = await txn.list({ prefix: 'member:' + roomId + ':' });
+    const existing = await txn.get(memberKey);
+    if (existing?.connected) return { error: 'duplicate' };
+    const reconnected = Boolean(existing && !existing.connected && existing.expiresAt > Date.now());
+    const others = [...entries.entries()].filter(([key, value]) => key !== memberKey && (value.connected || value.expiresAt > Date.now()));
+    if (others.length >= 2) return { error: 'full' };
+    if (existing && !reconnected) await txn.delete(memberKey);
+    const isInitiator = reconnected ? Boolean(existing.isInitiator) : others.length === 0;
+    await txn.put(memberKey, { userId: attachment.userId, isInitiator, connected: true, expiresAt: null });
+    if (reconnected) await txn.delete(reconnectKey);
+    return { isInitiator, reconnected };
+   });
+   if (membership.error === 'duplicate') { send(ws, { type: 'error', message: 'This account is already connected to the call.' }); return; }
+   if (membership.error === 'full') { send(ws, { type: 'error', message: 'This room is full.' }); return; }
+   const peers = this.ctx.getWebSockets().filter(peer => peer !== ws && peer.deserializeAttachment()?.joined && peer.deserializeAttachment()?.roomId === roomId);
+   const isInitiator = membership.isInitiator;
+   ws.serializeAttachment({ ...attachment, roomId, joined: true, isInitiator });
+   send(ws, { type: 'joined', roomId, isInitiator, ...(membership.reconnected ? { reconnected: true } : {}) });
+   if (peers.length) { for (const peer of peers) send(peer, { type: membership.reconnected ? 'peer-rejoined' : 'peer-joined' }); if (membership.reconnected) send(ws, { type: 'peer-rejoined' }); }
    return;
   }
   if (!attachment.joined || !attachment.roomId || !['offer','answer','ice','hangup'].includes(message.type)) { send(ws, { type: 'error', message: 'Join a room first.' }); return; }
@@ -61,8 +69,14 @@ export class CallRooms {
   const attachment = ws.deserializeAttachment();
   if (code !== 1006) { try { ws.close(code, reason); } catch {} }
   if (!attachment?.joined || !attachment.roomId) return;
-  const expiresAt = Date.now() + 25000; const key = 'reconnect:' + attachment.roomId + ':' + attachment.userId;
-  await this.ctx.storage.put(key, { isInitiator: attachment.isInitiator, expiresAt });
+  const expiresAt = Date.now() + 25000;
+  const memberKey = 'member:' + attachment.roomId + ':' + attachment.userId;
+  const reconnectKey = 'reconnect:' + attachment.roomId + ':' + attachment.userId;
+  await this.ctx.storage.transaction(async txn => {
+   const member = await txn.get(memberKey);
+   await txn.put(memberKey, { userId: attachment.userId, isInitiator: attachment.isInitiator, connected: false, expiresAt });
+   await txn.put(reconnectKey, { isInitiator: member?.isInitiator ?? attachment.isInitiator, expiresAt });
+  });
   await this.ctx.storage.setAlarm(expiresAt);
   for (const peer of this.ctx.getWebSockets()) { const other = peer.deserializeAttachment(); if (other?.joined && other.roomId === attachment.roomId) send(peer, { type: 'peer-disconnected' }); }
  }
@@ -75,6 +89,7 @@ export class CallRooms {
     await this.ctx.storage.delete(key);
     const parts = key.split(':');
     const roomId = parts[1];
+    await this.ctx.storage.delete('member:' + roomId + ':' + parts[2]);
     for (const peer of this.ctx.getWebSockets()) {
      const attachment = peer.deserializeAttachment();
      if (attachment?.joined && attachment.roomId === roomId) send(peer, { type: 'peer-left' });
