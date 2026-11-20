@@ -17,7 +17,7 @@ LoveMet is an early one-to-one video calling prototype.
 5. Open `http://localhost:3000` in two browser windows or devices on the same network. For another device, configure the host firewall; camera/microphone access requires HTTPS or localhost.
 
 ## Important limitations
-This is a prototype, not a production-ready calling service. It currently uses a public STUN server and has no TURN server, call history, push notifications, abuse reporting, or end-to-end identity verification. Backend foundations for phone OTP authentication, profiles, contacts and text messaging are present, but require PostgreSQL and a configured SMS provider; the user interface and live integration testing are incomplete. Calls may fail on restrictive mobile or corporate networks until a TURN service is configured. Public deployment must use HTTPS/WSS and appropriate security, privacy, rate-limiting, and abuse protections.
+This is a prototype, not a production-ready calling service. It currently uses a public STUN server and has no TURN server, call history, push notifications, abuse reporting, or end-to-end identity verification. Backend foundations for phone OTP authentication, profiles, contacts and text messaging are present, with an initial account/contacts/chat interface. The Supabase PostgreSQL schema has been created and verified; the Node server still needs its secure database URL and SMS provider credentials configured before live login and messaging can be tested. Calls may fail on restrictive mobile or corporate networks until a TURN service is configured. Public deployment must use HTTPS/WSS and appropriate security, privacy, rate-limiting, and abuse protections.
 
 Do not use this prototype for sensitive or confidential calls.
 
@@ -52,3 +52,15 @@ All routes below require a valid LoveMet session cookie:
 - `POST /api/messages` with `{"contactId":"...","message":"Hello"}` sends a text message to an accepted contact.
 
 These are backend endpoints only; the mobile interface, real-time message delivery, pagination, read receipts, abuse controls, and live database integration tests are still outstanding.
+
+
+## Supabase database status
+The LoveMet Supabase project contains the five core tables: `users`, `otp_challenges`, `sessions`, `contact_requests`, and `messages`. Row-level security is enabled and direct table privileges are revoked from the public `anon` and `authenticated` roles. The intended architecture is a trusted Node backend using a private PostgreSQL connection; do not expose database credentials or service-role secrets in browser code.
+
+Before live integration, configure these server-side environment variables in the hosting platform:
+- `DATABASE_URL`: Supabase PostgreSQL connection string (use the provider-recommended pooler if direct connectivity is unavailable).
+- `DATABASE_SSL=true`: when required by the selected Supabase connection method.
+- `OTP_HASH_SECRET`: a unique random secret of at least 32 characters.
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`: valid Twilio SMS credentials and sender.
+
+Never commit real credentials or paste them into source files. Deployment is intentionally deferred until development and tests are complete and separately approved.
