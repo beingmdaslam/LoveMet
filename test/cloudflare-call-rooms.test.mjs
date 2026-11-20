@@ -121,3 +121,11 @@ test('call room limits signaling frames per socket without blocking normal ICE t
  assert.equal(peer.closed.code, 1008);
  assert.equal(peer.closed.reason, 'Signaling rate limit exceeded');
 });
+
+test('call room closes signaling frames larger than 64 KiB', async () => {
+ const { room } = setup();
+ const peer = socket('u1');
+ await room.webSocketMessage(peer, 'x'.repeat(65537));
+ assert.equal(peer.closed.code, 1009);
+ assert.equal(peer.closed.reason, 'Signaling message too large');
+});
