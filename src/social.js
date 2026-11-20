@@ -200,6 +200,12 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 403, { error: "Calls are available only with accepted contacts." });
         return true;
       }
+      await pool.query(
+        `UPDATE call_invites SET status = 'ended', updated_at = NOW()
+         WHERE status IN ('ringing','accepted') AND expires_at <= NOW()
+           AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))`,
+        [user.id, contactId]
+      );
       const active = await pool.query(
         `SELECT id FROM call_invites
          WHERE status IN ('ringing','accepted') AND expires_at > NOW()
@@ -211,13 +217,21 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 409, { error: "A call with this contact is already active." });
         return true;
       }
-      const created = await pool.query(
-        `INSERT INTO call_invites (caller_id, callee_id)
-         VALUES ($1, $2)
-         RETURNING id, caller_id, callee_id, status, created_at, expires_at`,
-        [user.id, contactId]
-      );
-      json(res, 201, { invite: created.rows[0] });
+      try {
+        const created = await pool.query(
+          `INSERT INTO call_invites (caller_id, callee_id)
+           VALUES ($1, $2)
+           RETURNING id, caller_id, callee_id, status, created_at, expires_at`,
+          [user.id, contactId]
+        );
+        json(res, 201, { invite: created.rows[0] });
+      } catch (error) {
+        if (error.code === "23505") {
+          json(res, 409, { error: "A call with this contact is already active." });
+          return true;
+        }
+        throw error;
+      }
       return true;
     }
 
