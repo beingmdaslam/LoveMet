@@ -72,7 +72,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Add a fail-closed Worker entry for API, health and real-time routes
 - [x] Add automated tests for static routing and unsupported backend routes
 - [x] Add request-scoped Hyperdrive PostgreSQL client adapter with guaranteed connection cleanup
-- [x] Add database-backed Worker readiness check and Fetch-native `/api/auth/me`, `/api/profile`, `/api/contacts`, `/api/contacts/requests`, `/api/contacts/blocks`, `/api/users/search`, `/api/messages`, `/api/calls/config` and `/api/calls/history` handlers with session checks, same-origin protection, bounded JSON bodies and username conflict handling
+- [x] Add database-backed Worker readiness check and Fetch-native `/api/auth/me`, `/api/profile`, `/api/contacts`, `/api/contacts/requests`, `/api/contacts/blocks`, `/api/users/search`, `/api/messages`, `/api/calls/config`, `/api/calls/history`, `/api/contacts/request` and `/api/contacts/respond` handlers with session checks, same-origin protection, bounded JSON bodies and username conflict handling
 - [ ] Refactor remaining authentication and social APIs to Fetch-native request handlers
 - [ ] Configure a real Hyperdrive binding to the Supabase database and verify PostgreSQL transactions in the Workers runtime
 - [ ] Move chat and call signaling state into SQLite-backed Durable Objects
