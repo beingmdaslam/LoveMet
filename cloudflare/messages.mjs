@@ -2,7 +2,7 @@ import { getSessionUser } from './auth.mjs';
 import { allowRequest } from './rate-limit.mjs';
 import { publishUserEvent } from './user-events.mjs';
 const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
-const UUID = /^[0-9a-f-]{36}$/i;
+const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 function json(status, body) { return new Response(JSON.stringify(body), { status, headers: HEADERS }); }
 function sameOrigin(request) { try { const origin = request.headers.get('origin'); return Boolean(origin) && new URL(origin).origin === new URL(request.url).origin; } catch { return false; } }
 async function readJson(request) {
