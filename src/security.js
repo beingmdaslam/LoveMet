@@ -38,6 +38,17 @@ async function verifyOtp(phone, otp, storedHash, secret) {
   return crypto.timingSafeEqual(actual, Buffer.from(hashHex, "hex"));
 }
 
+function isSameOriginRequest(req) {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || (req.socket.encrypted ? "https" : "http")).split(",")[0].trim().toLowerCase();
+  const expectedProtocol = forwardedProto === "https" ? "https:" : "http:";
+  try {
+    const origin = new URL(req.headers.origin || "");
+    return origin.host === req.headers.host && origin.protocol === expectedProtocol;
+  } catch {
+    return false;
+  }
+}
+
 function createSessionToken() {
   return crypto.randomBytes(32).toString("base64url");
 }
@@ -53,5 +64,6 @@ module.exports = {
   hashOtp,
   verifyOtp,
   createSessionToken,
+  isSameOriginRequest,
   hashSessionToken
 };
