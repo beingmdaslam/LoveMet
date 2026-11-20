@@ -40,6 +40,7 @@ Deployment is intentionally postponed until the application has been implemented
 
 ## Phase 4 — Call management
 - [x] Incoming call prompt with accept/decline
+- [x] Live WebSocket call-invitation and response updates while users are online
 - [x] Missed, incoming and outgoing call history
 - [x] Basic call status, peer-end detection, and stale-session cleanup
 - [x] Basic call history and elapsed duration (when both start/end timestamps are recorded)
