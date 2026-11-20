@@ -39,3 +39,16 @@ The server now exposes:
 - `PATCH /api/profile` with JSON fields `displayName` and/or `username` to update the signed-in profile
 
 To enable it, configure PostgreSQL, run `psql "$DATABASE_URL" -f db/schema.sql`, set a strong `OTP_HASH_SECRET` (at least 32 characters), and configure Twilio credentials in the environment. Install dependencies with `npm install`. The API returns a service-unavailable response when the database is not configured; it never returns OTP codes in API responses. OTPs expire after five minutes, have a five-attempt limit, and are hashed before storage. Session cookies are HttpOnly and logout revokes the stored session. The current rate limiter is process-local and must be replaced or supplemented with a shared store before running multiple server instances. SMS costs and provider account approval may apply. Use HTTPS in any shared or production environment. This backend has not yet been integration-tested against a live database or SMS account.
+
+
+## Contacts and messaging API (backend foundation)
+All routes below require a valid LoveMet session cookie:
+- `GET /api/users/search?username=ali` searches public usernames by prefix.
+- `POST /api/contacts/request` with `{"username":"ali"}` creates a contact request.
+- `GET /api/contacts/requests` lists incoming pending requests.
+- `POST /api/contacts/respond` with `{"requestId":"...","action":"accept"}` or `decline` responds to an incoming request.
+- `GET /api/contacts` lists accepted contacts.
+- `GET /api/messages?contactId=...` reads the latest 50 messages with an accepted contact.
+- `POST /api/messages` with `{"contactId":"...","message":"Hello"}` sends a text message to an accepted contact.
+
+These are backend endpoints only; the mobile interface, real-time message delivery, pagination, read receipts, abuse controls, and live database integration tests are still outstanding.
