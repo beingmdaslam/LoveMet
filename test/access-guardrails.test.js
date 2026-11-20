@@ -205,3 +205,13 @@ test("OTP verification shares the per-phone issuance lock before reading a chall
   const verifyRoute = auth.slice(auth.indexOf('pathname === "/api/auth/verify-otp"'), auth.indexOf('pathname === "/api/auth/me"'));
   assert.match(verifyRoute, /BEGIN[\s\S]*pg_advisory_xact_lock\(hashtextextended\(\$1::text, 3\)\)[\s\S]*SELECT id, code_hash, attempts FROM otp_challenges[\s\S]*FOR UPDATE/);
 });
+
+test("signaling WebSocket periodically revalidates the login session and clears its timer", () => {
+  const signaling = server.slice(server.indexOf('const wss = new WebSocket.Server'), server.indexOf('server.listen'));
+  assert.match(signaling, /authTimer = setInterval\(async \(\) =>/);
+  assert.match(signaling, /const current = await getUser\(req\)/);
+  assert.match(signaling, /current\.id !== user\.id/);
+  assert.match(signaling, /Session expired/);
+  assert.match(signaling, /ws\.once\("close"|ws\.on\("close"/);
+  assert.match(signaling, /clearInterval\(authTimer\)/);
+});
