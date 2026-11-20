@@ -82,7 +82,7 @@ export default {
     }
     if (pathname === "/signal") {
       if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
-        return new Response("WebSocket upgrade required.", { status: 426, headers: JSON_HEADERS });
+        return upgradeRequired();
       }
       const roomId = url.searchParams.get("roomId") || "";
       if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(roomId)) return new Response("A valid call invitation is required.", { status: 400 });
