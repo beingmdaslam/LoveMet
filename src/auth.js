@@ -16,6 +16,11 @@ const requestLimits = new Map();
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 8 * 1024;
 
+function parsePhone(value) {
+  try { return normalizePhone(value); }
+  catch (error) { error.status = 400; throw error; }
+}
+
 function json(res, status, body, headers = {}) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -80,7 +85,8 @@ async function sendSms(phone, code) {
       Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded"
     },
-    body: form
+    body: form,
+    signal: AbortSignal.timeout(10000)
   });
   if (!response.ok) {
     const error = new Error("SMS delivery failed.");
@@ -132,7 +138,7 @@ async function handleAuthRequest(req, res, pathname) {
   try {
     if (pathname === "/api/auth/request-otp" && req.method === "POST") {
       const body = await readJson(req);
-      const phone = normalizePhone(body.phone);
+      const phone = parsePhone(body.phone);
       const ip = getClientIp(req);
       if (!allowRequest(`ip:${ip}`, 10, 60 * 60 * 1000) ||
           !allowRequest(`phone:${phone}`, 3, 15 * 60 * 1000)) {
