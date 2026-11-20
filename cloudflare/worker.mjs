@@ -7,6 +7,7 @@ import { handleUserLookup } from "./users.mjs";
 import { handleCallsRead } from "./calls.mjs";
 import { handleContactMutation } from "./contact-mutations.mjs";
 import { handleModeration } from "./moderation.mjs";
+import { handleOtpAndLogout } from "./otp.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -36,6 +37,13 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/api/auth/request-otp" || pathname === "/api/auth/verify-otp" || pathname === "/api/auth/logout") {
+      try {
+        return await withDatabase(env, client => handleOtpAndLogout(request, client, env));
+      } catch {
+        return unavailable("API");
+      }
+    }
     if (pathname === "/api/contacts/block" || pathname === "/api/contacts/unblock" || pathname === "/api/users/report") {
       try {
         return await withDatabase(env, client => handleModeration(request, client));
