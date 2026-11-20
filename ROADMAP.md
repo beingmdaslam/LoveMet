@@ -19,7 +19,6 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Display name and username editing API + frontend UI (live database integration pending)
 - [ ] Avatar upload and profile image management
 - [ ] Privacy controls and block/report tools
-- [ ] Privacy controls and block/report tools
 
 ## Phase 3 — Contacts and messaging
 - [x] Backend username search and contact-request API
@@ -58,6 +57,13 @@ Deployment is intentionally postponed until the application has been implemented
 - TURN service credentials or a self-hosted TURN server
 - Push notification configuration (Firebase/FCM for Android)
 - HTTPS domain and hosting choice (only when deployment is approved)
+
+## Database status
+- [x] Supabase PostgreSQL project connected and active
+- [x] Core tables created and verified: users, otp_challenges, sessions, contact_requests, messages
+- [x] RLS enabled on all five tables; no client policies granted (server-side API owns access)
+- [ ] Backend hosting DATABASE_URL and OTP_HASH_SECRET configuration
+- [ ] Live database + SMS integration tests
 
 ## Current status
 The repository now contains the early 1-to-1 calling prototype, OTP/session backend foundations, contacts/chat APIs, and a first account/contacts/chat frontend integration. The new UI has not yet been verified against a live PostgreSQL database or SMS provider. The project is not production-ready.
