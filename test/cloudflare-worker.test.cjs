@@ -127,3 +127,21 @@ test("Cloudflare Worker rejects missing signaling room IDs before Durable Object
   assert.equal(response.status, 400);
   assert.equal(lookups, 0);
 });
+test("Cloudflare Worker overwrites unsafe static asset headers but preserves content metadata", async () => {
+  const worker = await getWorker();
+  const upstream = new Response("asset", {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=3600",
+      "X-Frame-Options": "ALLOWALL",
+      "X-Content-Type-Options": "sniff",
+      "Referrer-Policy": "unsafe-url"
+    }
+  });
+  const response = await worker.fetch(new Request("https://example.test/"), assets(upstream));
+  assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=3600");
+  assert.equal(response.headers.get("x-frame-options"), "DENY");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
+});
