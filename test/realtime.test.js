@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const EventEmitter = require("node:events");
 const WebSocket = require("ws");
-const { addClient, publishMessage, publishReadReceipt } = require("../src/realtime");
+const { addClient, publishUser, publishMessage, publishReadReceipt } = require("../src/realtime");
 
 class FakeSocket extends EventEmitter {
   constructor() { super(); this.readyState = WebSocket.OPEN; this.sent = []; }
@@ -57,4 +57,17 @@ test("a user cannot open more than five simultaneous chat sockets", () => {
   const accepted = sockets.map((socket, index) => addClient("socket-cap-test-user", socket));
   assert.deepEqual(accepted, [true, true, true, true, true, false]);
   sockets.forEach(socket => socket.emit("close"));
+});
+
+
+test("targeted live events are delivered only to the selected account", () => {
+  const target = new FakeSocket();
+  const other = new FakeSocket();
+  addClient("call-event-target", target);
+  addClient("call-event-other", other);
+  publishUser("call-event-target", { type: "call-update" });
+  assert.deepEqual(target.sent, [{ type: "call-update" }]);
+  assert.equal(other.sent.length, 0);
+  target.emit("close");
+  other.emit("close");
 });
