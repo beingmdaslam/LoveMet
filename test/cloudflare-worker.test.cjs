@@ -82,3 +82,18 @@ test("Cloudflare Worker rejects malformed UUID-shaped signaling room IDs", async
   }), { CALL_ROOMS: { idFromName() { throw new Error("must not allocate a room"); } } });
   assert.equal(response.status, 400);
 });
+
+test("Cloudflare Worker rejects non-WebSocket signaling requests before Durable Object lookup", async () => {
+  const worker = await getWorker();
+  let lookups = 0;
+  const env = { CALL_ROOMS: { idFromName() { lookups += 1; throw new Error("must not allocate a room"); } } };
+  const roomId = "11111111-1111-4111-8111-111111111111";
+  const methodResponse = await worker.fetch(new Request(`https://example.test/signal?roomId=${roomId}`, {
+    method: "POST",
+    headers: { Upgrade: "websocket" }
+  }), env);
+  assert.equal(methodResponse.status, 426);
+  const upgradeResponse = await worker.fetch(new Request(`https://example.test/signal?roomId=${roomId}`), env);
+  assert.equal(upgradeResponse.status, 426);
+  assert.equal(lookups, 0);
+});
