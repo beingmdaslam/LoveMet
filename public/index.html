@@ -60,14 +60,14 @@
       <button class="secondary" id="cameraBtn" disabled>Turn camera off</button>
       <button class="danger" id="leaveBtn" disabled>Leave call</button>
     </div>
-    <p class="note">Prototype notice: this is an early 1-to-1 calling build. It has no account login or end-to-end identity verification yet. For reliable calls across mobile networks, a properly configured TURN server and HTTPS deployment will be required. Camera and microphone work on HTTPS or localhost.</p>
+    <p class="note">Prototype notice: this is an early 1-to-1 calling build. Phone account login, contacts and basic chat are available; authenticated call invitations and end-to-end encryption are not implemented yet. For reliable calls across mobile networks, a properly configured TURN server and HTTPS deployment will be required. Camera and microphone work on HTTPS or localhost.</p>
   </section>
 </main>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
   const auth=$("authArea"), signed=$("signedInArea");
-  let selected=null;
+  let selected=null, currentUserId=null;
   async function api(url,options={}) {
     const response=await fetch(url,{credentials:"same-origin",...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
     const data=await response.json().catch(()=>({error:"Unexpected server response."}));
@@ -77,22 +77,23 @@
   const say=(id,value)=>$(id).textContent=value||"";
   function action(label,handler,kind="secondary"){const b=document.createElement("button");b.textContent=label;b.className=kind;b.addEventListener("click",handler);return b;}
   async function load(){
-    try{const d=await api("/api/auth/me");auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";await Promise.all([contacts(),requests()]);}
+    try{const d=await api("/api/auth/me");currentUserId=d.user.id;auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";await Promise.all([contacts(),requests()]);}
     catch{signed.classList.add("hidden");auth.classList.remove("hidden");}
   }
   $("sendOtpBtn").onclick=async()=>{try{say("authStatus","Sending…");await api("/api/auth/request-otp",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim()})});$("otpArea").classList.remove("hidden");say("authStatus","If SMS is configured, a code has been sent.");}catch(e){say("authStatus",e.message);}};
-  $("verifyOtpBtn").onclick=async()=>{try{const d=await api("/api/auth/verify-otp",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim(),code:$("otp").value.trim()})});auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";say("authStatus","Signed in.");await Promise.all([contacts(),requests()]);}catch(e){say("authStatus",e.message);}};
+  $("verifyOtpBtn").onclick=async()=>{try{const d=await api("/api/auth/verify-otp",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim(),code:$("otp").value.trim()})});currentUserId=d.user.id;auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";say("authStatus","Signed in.");await Promise.all([contacts(),requests()]);}catch(e){say("authStatus",e.message);}};
   $("saveProfileBtn").onclick=async()=>{try{const d=await api("/api/profile",{method:"PATCH",body:JSON.stringify({displayName:$("displayName").value,username:$("username").value})});$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";say("profileStatus","Profile saved.");}catch(e){say("profileStatus",e.message);}};
   $("searchBtn").onclick=async()=>{const box=$("searchResults");box.replaceChildren();try{const d=await api("/api/users/search?username="+encodeURIComponent($("searchUsername").value.trim().replace(/^@/,"")));if(!d.users.length){box.textContent="No matching users.";return;}d.users.forEach(u=>{const item=document.createElement("div");item.className="listItem";const label=document.createElement("span");label.textContent="@"+(u.username||"user");item.append(label,action("Add",async()=>{try{await api("/api/contacts/request",{method:"POST",body:JSON.stringify({username:u.username})});label.textContent+=" · Request sent";}catch(e){label.textContent+=" · "+e.message;}},""));box.append(item);});}catch(e){box.textContent=e.message;}};
   async function requests(){const box=$("incomingRequests");box.replaceChildren();try{const d=await api("/api/contacts/requests");if(!d.requests.length){box.textContent="No pending requests.";return;}d.requests.forEach(r=>{const item=document.createElement("div");item.className="listItem";const label=document.createElement("span");label.textContent="@"+(r.username||r.display_name||"user");item.append(label,action("Accept",async()=>{try{await api("/api/contacts/respond",{method:"POST",body:JSON.stringify({requestId:r.id,action:"accept"})});await requests();await contacts();}catch(e){label.textContent=e.message;}},""),action("Decline",async()=>{try{await api("/api/contacts/respond",{method:"POST",body:JSON.stringify({requestId:r.id,action:"decline"})});await requests();}catch(e){label.textContent=e.message;}}));box.append(item);});}catch(e){box.textContent=e.message;}}
   async function contacts(){const box=$("contactsList");box.replaceChildren();try{const d=await api("/api/contacts");if(!d.contacts.length){box.textContent="No contacts yet. Search a username to add someone.";return;}d.contacts.forEach(u=>box.append(action(u.display_name||("@"+u.username),()=>openChat(u))));}catch(e){box.textContent=e.message;}}
   async function openChat(u){selected=u.id;$("chatArea").classList.remove("hidden");$("chatTitle").textContent="Chat with "+(u.display_name||("@"+u.username));await messages();}
-  async function messages(){if(!selected)return;const box=$("chatLog");box.replaceChildren();try{const d=await api("/api/messages?contactId="+encodeURIComponent(selected));d.messages.forEach(m=>{const b=document.createElement("div");b.className="bubble";b.textContent=m.body;box.append(b);});box.scrollTop=box.scrollHeight;}catch(e){say("chatStatus",e.message);}}
+  async function messages(){if(!selected)return;const box=$("chatLog");box.replaceChildren();try{const d=await api("/api/messages?contactId="+encodeURIComponent(selected));d.messages.forEach(m=>{const b=document.createElement("div");b.className="bubble"+(m.sender_id===currentUserId?" mine":"");b.textContent=m.body;box.append(b);});box.scrollTop=box.scrollHeight;}catch(e){say("chatStatus",e.message);}}
   async function sendMessage(){const input=$("messageInput"),value=input.value.trim();if(!selected||!value)return;try{await api("/api/messages",{method:"POST",body:JSON.stringify({contactId:selected,message:value})});input.value="";say("chatStatus","Message sent.");await messages();}catch(e){say("chatStatus",e.message);}}
   $("sendMessageBtn").onclick=sendMessage;$("messageInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
   $("refreshAccountBtn").onclick=load;
   $("logoutBtn").onclick=async()=>{try{await api("/api/auth/logout",{method:"POST",body:"{}"});}catch{}selected=null;signed.classList.add("hidden");auth.classList.remove("hidden");say("authStatus","Signed out.");};
   load();
+  window.setInterval(()=>{if(selected&&!$("chatArea").classList.contains("hidden"))messages();},4000);
 })();
 </script>
 <script>
