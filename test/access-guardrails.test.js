@@ -155,3 +155,15 @@ test("call invitations share the block pair lock and serialize per-caller quota"
   assert.match(route, /await client\.query\("COMMIT"\)/);
   assert.match(route, /client\.release\(\)/);
 });
+
+
+test("accepting a call invitation shares the block pair lock", () => {
+  const route = social.slice(social.indexOf('pathname === "/api/calls/respond"'), social.indexOf('pathname === "/api/messages" && req.method === "GET"'));
+  const accept = route.slice(route.indexOf('if (action === "accept")'), route.indexOf('} else if (action === "decline")'));
+  assert.match(accept, /await client\.query\("BEGIN"\)/);
+  assert.match(accept, /SELECT caller_id, callee_id FROM call_invites/);
+  assert.match(accept, /pg_advisory_xact_lock\(hashtextextended/);
+  assert.match(accept, /FROM user_blocks b/);
+  assert.match(accept, /await client\.query\("COMMIT"\)/);
+  assert.match(accept, /client\.release\(\)/);
+});
