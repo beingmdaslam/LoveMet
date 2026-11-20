@@ -87,6 +87,13 @@ CREATE INDEX IF NOT EXISTS call_invites_callee_status_idx
   ON call_invites (callee_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS call_invites_caller_status_idx
   ON call_invites (caller_id, status, created_at DESC);
+-- Compact indexes for the frequent participant-wide active-call and expiry checks.
+CREATE INDEX IF NOT EXISTS call_invites_active_caller_expiry_idx
+  ON call_invites (caller_id, expires_at)
+  WHERE status IN ('ringing', 'accepted');
+CREATE INDEX IF NOT EXISTS call_invites_active_callee_expiry_idx
+  ON call_invites (callee_id, expires_at)
+  WHERE status IN ('ringing', 'accepted');
 ALTER TABLE call_invites ENABLE ROW LEVEL SECURITY;
 REVOKE ALL PRIVILEGES ON TABLE call_invites FROM anon, authenticated;
 
