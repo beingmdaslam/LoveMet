@@ -2,8 +2,8 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const WebSocket = require("ws");
-const { handleAuthRequest } = require("./src/auth");
-const { handleSocialRequest } = require("./src/social");
+const { handleAuthRequest, pool } = require("./src/auth");
+const { handleSocialRequest, getUser } = require("./src/social");
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -45,8 +45,18 @@ function send(ws, payload) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
 }
 
-wss.on("connection", (ws) => {
+wss.on("connection", async (ws, req) => {
   ws.roomId = null;
+  try {
+    ws.authUser = await getUser(req);
+  } catch {
+    ws.close(1011, "Authentication unavailable");
+    return;
+  }
+  if (!ws.authUser) {
+    ws.close(1008, "Sign in required");
+    return;
+  }
 
   ws.on("message", (raw) => {
     let message;
@@ -58,9 +68,29 @@ wss.on("connection", (ws) => {
     }
 
     if (message.type === "join") {
-      const roomId = String(message.roomId || "").trim().toUpperCase();
-      if (!/^[A-Z0-9-]{4,24}$/.test(roomId)) {
-        send(ws, { type: "error", message: "Room code must be 4–24 letters or numbers." });
+      const roomId = String(message.roomId || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(roomId)) {
+        send(ws, { type: "error", message: "Join using a valid accepted call invitation." });
+        return;
+      }
+      if (!pool) {
+        send(ws, { type: "error", message: "Call service is not configured." });
+        return;
+      }
+      try {
+        const permission = await pool.query(
+          `SELECT id FROM call_invites
+           WHERE id = $1 AND status = 'accepted' AND expires_at > NOW()
+             AND (caller_id = $2 OR callee_id = $2)
+           LIMIT 1`,
+          [roomId, ws.authUser.id]
+        );
+        if (!permission.rowCount) {
+          send(ws, { type: "error", message: "This call is not accepted or has expired." });
+          return;
+        }
+      } catch {
+        send(ws, { type: "error", message: "Could not verify call permission." });
         return;
       }
       if (ws.roomId) {
