@@ -9,7 +9,8 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Leave-call control
 - [x] Authenticated call invitations and accept/decline flow
 - [x] WebSocket signaling restricted to signed-in participants with accepted invitations
-- [ ] TURN server configuration and network fallback
+- [x] Short-lived per-user TURN credential delivery support
+- [ ] TURN provider setup and real-network relay fallback testing
 - [ ] Reconnect handling, call timers, busy/offline states
 - [ ] Camera switching and speaker/audio-route handling
 - [ ] Call permission and device compatibility testing
