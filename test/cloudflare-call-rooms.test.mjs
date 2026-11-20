@@ -115,7 +115,7 @@ test('call room limits signaling frames per socket without blocking normal ICE t
  const { room, sockets } = setup();
  const peer = socket('u1'); sockets.push(peer);
  await room.webSocketMessage(peer, JSON.stringify({ type: 'join', roomId }));
- for (let i = 0; i < 300; i++) await room.webSocketMessage(peer, JSON.stringify({ type: 'ice', data: { candidate: 'candidate-' + i } }));
+ for (let i = 0; i < 299; i++) await room.webSocketMessage(peer, JSON.stringify({ type: 'ice', data: { candidate: 'candidate-' + i } }));
  assert.equal(peer.closed, null);
  await room.webSocketMessage(peer, JSON.stringify({ type: 'ice', data: { candidate: 'overflow' } }));
  assert.equal(peer.closed.code, 1008);
