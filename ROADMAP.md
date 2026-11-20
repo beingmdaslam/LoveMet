@@ -20,10 +20,10 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Privacy controls and block/report tools
 
 ## Phase 3 — Contacts and messaging
-- [ ] Find/add contacts by username or invite link
-- [ ] Contact requests and accept/decline
-- [ ] One-to-one text chat
-- [ ] Message delivery/read state and timestamps
+- [x] Backend username search and contact-request API (UI/invite links remain)
+- [x] Backend incoming-request list and accept/decline API (UI remains)
+- [x] Backend one-to-one text-message send/read API (chat UI remains)
+- [ ] Real-time delivery, read-receipt updates and chat UI (message timestamps are stored)
 - [ ] Safe handling of attachments (if enabled)
 
 ## Phase 4 — Call management
