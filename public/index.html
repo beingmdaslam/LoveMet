@@ -185,7 +185,7 @@
         } catch (error) { say("Call setup error: " + error.message); }
       };
       socket.onerror = () => say("Signaling connection failed. Check the server and try again.");
-      socket.onclose = () => { if (joined) say("Call connection closed."); };
+      socket.onclose = () => { const wasJoined = joined; cleanup(false); if (wasJoined) say("Call connection closed. You can start another call."); };
     } catch (error) {
       say(error.name === "NotAllowedError" ? "Camera/microphone permission was denied." : "Could not start camera: " + error.message);
       cleanup(false);
