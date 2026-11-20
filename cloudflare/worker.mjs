@@ -9,6 +9,7 @@ import { handleContactMutation } from "./contact-mutations.mjs";
 import { handleModeration } from "./moderation.mjs";
 import { handleOtpAndLogout } from "./otp.mjs";
 import { handleAccountDelete } from "./account.mjs";
+import { handleCallMutation } from "./call-mutations.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -38,6 +39,13 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/api/calls/invite" || pathname === "/api/calls/respond") {
+      try {
+        return await withDatabase(env, client => handleCallMutation(request, client, env));
+      } catch {
+        return unavailable("API");
+      }
+    }
     if (pathname === "/api/account") {
       try {
         return await withDatabase(env, client => handleAccountDelete(request, client));
