@@ -27,3 +27,13 @@ test("base schema and migration agree on nullable phone and email verification c
   assert.match(schema, /email_verified_at TIMESTAMPTZ/i);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS email_otp_challenges/i);
 });
+
+test("email OTP preflight is read-only and checks the existing identity schema", async () => {
+  const sql = await readFile(new URL("../db/migrations/20261120_03_preflight.sql", import.meta.url), "utf8");
+  assert.match(sql, /READ-ONLY preflight/i);
+  assert.match(sql, /to_regclass\('public\.users'\)/i);
+  assert.match(sql, /column_name = 'phone_e164' AND is_nullable = 'NO'/i);
+  assert.match(sql, /column_name = 'email'/i);
+  assert.match(sql, /column_name = 'email_verified_at'/i);
+  assert.doesNotMatch(sql, /\b(?:ALTER|CREATE|DROP|INSERT|UPDATE|DELETE|GRANT|REVOKE)\s+(?:TABLE|INDEX|COLUMN|INTO|SET|ALL|[A-Z])/i);
+});
