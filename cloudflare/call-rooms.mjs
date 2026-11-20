@@ -18,6 +18,10 @@ export class CallRooms {
   try { session = await withDatabase(this.env, client => client.query('SELECT u.id FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW() LIMIT 1', [hash])); }
   catch { return new Response('Signaling service unavailable.', { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' } }); }
   if (!session.rowCount) return new Response('Sign in required.', { status: 401 });
+  // Reject duplicate live sockets before upgrade, including sockets that have not sent join yet.
+  // This prevents pre-join connection floods from bypassing the two-participant room limit.
+  const alreadyConnected = this.ctx.getWebSockets().some(ws => ws.readyState === 1 && ws.deserializeAttachment()?.userId === session.rows[0].id);
+  if (alreadyConnected) return new Response('This account already has a live signaling connection.', { status: 409, headers: { 'Cache-Control': 'no-store' } });
   const pair = new WebSocketPair(); const [client, server] = Object.values(pair);
   this.ctx.acceptWebSocket(server);
   await this.ctx.storage.setAlarm(Date.now() + 60000);
