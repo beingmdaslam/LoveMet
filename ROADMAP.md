@@ -57,6 +57,7 @@ Deployment is intentionally postponed until the application has been implemented
 
 ## Phase 6 — Security, privacy and quality
 - [x] Basic block controls, categorized reports, and database-backed report limits
+- [x] Shared per-account limits for username search, contact requests, call invitations and message sending
 - [ ] Full threat model and staffed report-moderation workflow
 - [ ] Authentication and authorization integration tests
 - [x] Secure signaling origin/session/accepted-invite checks, same-origin mutation protection and input validation
