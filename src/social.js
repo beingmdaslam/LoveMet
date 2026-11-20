@@ -62,7 +62,7 @@ async function isContact(userA, userB) {
 }
 
 async function handleSocialRequest(req, res, pathname) {
-  if (!pathname.startsWith("/api/contacts") && pathname !== "/api/users/search" && pathname !== "/api/messages") return false;
+  if (!pathname.startsWith("/api/contacts") && !pathname.startsWith("/api/calls") && pathname !== "/api/users/search" && pathname !== "/api/messages") return false;
   if (!pool) {
     json(res, 503, { error: "Account service is not configured." });
     return true;
@@ -171,6 +171,91 @@ async function handleSocialRequest(req, res, pathname) {
       return true;
     }
 
+    if (pathname === "/api/calls/invites" && req.method === "GET") {
+      await pool.query(
+        `UPDATE call_invites SET status = 'missed', updated_at = NOW()
+         WHERE callee_id = $1 AND status = 'ringing' AND expires_at <= NOW()`,
+        [user.id]
+      );
+      const result = await pool.query(
+        `SELECT c.id, c.caller_id, c.callee_id, c.status, c.created_at, c.expires_at,
+                u.username AS caller_username, u.display_name AS caller_display_name
+         FROM call_invites c JOIN users u ON u.id = c.caller_id
+         WHERE c.callee_id = $1 AND c.status = 'ringing' AND c.expires_at > NOW()
+         ORDER BY c.created_at DESC LIMIT 10`,
+        [user.id]
+      );
+      json(res, 200, { invites: result.rows });
+      return true;
+    }
+
+    if (pathname === "/api/calls/invite" && req.method === "POST") {
+      const body = await readJson(req);
+      const contactId = String(body.contactId || "");
+      if (!/^[0-9a-f-]{36}$/i.test(contactId) || !(await isContact(user.id, contactId))) {
+        json(res, 403, { error: "Calls are available only with accepted contacts." });
+        return true;
+      }
+      const active = await pool.query(
+        `SELECT id FROM call_invites
+         WHERE status IN ('ringing','accepted') AND expires_at > NOW()
+           AND ((caller_id = $1 AND callee_id = $2) OR (caller_id = $2 AND callee_id = $1))
+         LIMIT 1`,
+        [user.id, contactId]
+      );
+      if (active.rowCount) {
+        json(res, 409, { error: "A call with this contact is already active." });
+        return true;
+      }
+      const created = await pool.query(
+        `INSERT INTO call_invites (caller_id, callee_id)
+         VALUES ($1, $2)
+         RETURNING id, caller_id, callee_id, status, created_at, expires_at`,
+        [user.id, contactId]
+      );
+      json(res, 201, { invite: created.rows[0] });
+      return true;
+    }
+
+    if (pathname === "/api/calls/respond" && req.method === "POST") {
+      const body = await readJson(req);
+      const inviteId = String(body.inviteId || "");
+      const action = String(body.action || "");
+      if (!/^[0-9a-f-]{36}$/i.test(inviteId) || !["accept","decline","cancel","end"].includes(action)) {
+        json(res, 400, { error: "Provide a valid inviteId and call action." });
+        return true;
+      }
+      let result;
+      if (action === "accept" || action === "decline") {
+        result = await pool.query(
+          `UPDATE call_invites SET status = $3, updated_at = NOW()
+           WHERE id = $1 AND callee_id = $2 AND status = 'ringing' AND expires_at > NOW()
+           RETURNING id, caller_id, callee_id, status, expires_at`,
+          [inviteId, user.id, action === "accept" ? "accepted" : "declined"]
+        );
+      } else if (action === "cancel") {
+        result = await pool.query(
+          `UPDATE call_invites SET status = 'cancelled', updated_at = NOW()
+           WHERE id = $1 AND caller_id = $2 AND status = 'ringing'
+           RETURNING id, caller_id, callee_id, status`,
+          [inviteId, user.id]
+        );
+      } else {
+        result = await pool.query(
+          `UPDATE call_invites SET status = 'ended', updated_at = NOW()
+           WHERE id = $1 AND (caller_id = $2 OR callee_id = $2) AND status = 'accepted'
+           RETURNING id, caller_id, callee_id, status`,
+          [inviteId, user.id]
+        );
+      }
+      if (!result.rowCount) {
+        json(res, 404, { error: "Active call invitation not found." });
+        return true;
+      }
+      json(res, 200, { invite: result.rows[0] });
+      return true;
+    }
+
     if (pathname === "/api/messages" && req.method === "GET") {
       const url = new URL(req.url, "http://localhost");
       const contactId = String(url.searchParams.get("contactId") || "");
@@ -227,4 +312,4 @@ async function handleSocialRequest(req, res, pathname) {
   }
 }
 
-module.exports = { handleSocialRequest };
+module.exports = { handleSocialRequest, getUser };
