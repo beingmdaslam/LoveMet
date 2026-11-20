@@ -35,6 +35,13 @@ test('message send uses a transaction, pair lock, rechecks contact and inserts s
  assert.ok(sql.some(value => value.includes('pg_advisory_xact_lock')));
  assert.ok(sql.some(value => value.includes('INSERT INTO api_rate_limits')));
 });
+test('message send rejects non-canonical contact UUIDs', async () => {
+ const client = fakeClient();
+ const request = new Request('https://lovemet.example/api/messages', { method: 'POST', headers: { origin: 'https://lovemet.example', cookie: 'lovemet_session=' + token, 'content-type': 'application/json' }, body: JSON.stringify({ contactId: 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz', message: 'hello' }) });
+ const response = await handleMessages(request, client, { OTP_HASH_SECRET: secret });
+ assert.equal(response.status, 400);
+ assert.equal(client.calls.some(call => call.sql.includes('FROM contact_requests')), false);
+});
 test('message send rejects cross-origin requests before database access', async () => {
  const client = fakeClient();
  const response = await handleMessages(new Request('https://lovemet.example/api/messages', { method: 'POST', headers: { origin: 'https://evil.example', cookie: 'lovemet_session=' + token }, body: '{}' }), client, { OTP_HASH_SECRET: secret });
