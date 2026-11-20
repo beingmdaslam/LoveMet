@@ -26,7 +26,7 @@ async function getUser(req) {
   const crypto = require("node:crypto");
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
   const result = await pool.query(
-    `SELECT u.id, u.phone_e164, u.display_name, u.username, u.avatar_url
+    `SELECT u.id, u.display_name, u.username, u.avatar_url
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > NOW()
      LIMIT 1`,
