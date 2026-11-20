@@ -13,6 +13,18 @@ const CALL_RECONNECT_GRACE_MS = 25000;
 
 const server = http.createServer(async (req, res) => {
   const pathname = new URL(req.url, "http://localhost").pathname;
+  if (pathname === "/healthz" && req.method === "GET") {
+    try {
+      if (!pool) throw new Error("Database is not configured.");
+      await pool.query("SELECT 1");
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ ok: true, database: "connected" }));
+    } catch {
+      res.writeHead(503, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ ok: false, database: "unavailable" }));
+    }
+    return;
+  }
   if (await handleAuthRequest(req, res, pathname)) return;
   if (await handleSocialRequest(req, res, pathname)) return;
   const requested = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
