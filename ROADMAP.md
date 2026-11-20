@@ -76,7 +76,9 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Refactor remaining authentication and social APIs to Fetch-native request handlers
 - [ ] Configure a real Hyperdrive binding to the Supabase database and verify PostgreSQL transactions in the Workers runtime
 - [x] Add SQLite-backed hibernatable Durable Object call signaling with session/invite/block checks, two-participant cap, reconnect grace and bounded messages
-- [ ] Move chat pub/sub into Durable Objects and wire live event delivery for logout/account deletion
+- [x] Add per-user hibernatable chat event Durable Objects with session revalidation, five-socket cap and receive-only clients
+- [x] Publish new messages and read receipts to recipient event rooms after database commit (HTTP polling remains fallback)
+- [ ] Wire live call/contact events for logout, account deletion and invitation mutations
 - [ ] Add Workers integration tests and compare security behavior with the Node backend
 - [ ] Complete real-device, network, privacy and operational checks before requesting deployment approval
 
