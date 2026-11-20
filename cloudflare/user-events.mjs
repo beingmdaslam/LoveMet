@@ -17,7 +17,7 @@ export class UserEvents {
    let raw; try { raw = await request.text(); } catch { return new Response('Invalid event.', { status: 400 }); }
    if (new TextEncoder().encode(raw).byteLength > MAX_EVENT_BYTES) return new Response('Event too large.', { status: 413 });
    let event; try { event = JSON.parse(raw); } catch { return new Response('Invalid event.', { status: 400 }); }
-   if (!event || typeof event !== 'object' || Array.isArray(event) || !['message','read','call-update','contact-update'].includes(event.type)) return new Response('Unsupported event.', { status: 400 });
+   if (!event || typeof event !== 'object' || Array.isArray(event) || !['message','read','call-update','contact-update','session-ended'].includes(event.type)) return new Response('Unsupported event.', { status: 400 });
    let delivered = 0; for (const ws of this.ctx.getWebSockets()) { if (ws.readyState === 1) { send(ws, event); delivered += 1; } }
    return Response.json({ ok: true, delivered }, { headers: HEADERS });
   }
