@@ -268,3 +268,20 @@ test("state-changing account and social APIs reject cross-origin browser request
   assert.match(auth, /Cross-origin request blocked/);
   assert.match(social, /Cross-origin request blocked/);
 });
+
+
+test("OTP rate limits are database-backed, atomic, and store only hashed identifiers", () => {
+  const auth = fs.readFileSync(path.join(root, "src/auth.js"), "utf8");
+  const schema = fs.readFileSync(path.join(root, "db/schema.sql"), "utf8");
+  const migration = fs.readFileSync(path.join(root, "db/migrations/20261120_add_shared_api_rate_limits.sql"), "utf8");
+  assert.match(auth, /async function allowRequest\(key, max, windowMs\)/);
+  assert.match(auth, /createHash\("sha256"\)\.update\(String\(key\)\)\.digest\("hex"\)/);
+  assert.match(auth, /ON CONFLICT \(key_hash\) DO UPDATE SET/);
+  assert.match(auth, /hit_count <= max/);
+  assert.match(auth, /await allowRequest\(/);
+  for (const source of [schema, migration]) {
+    assert.match(source, /CREATE TABLE IF NOT EXISTS (?:public\.)?api_rate_limits/);
+    assert.match(source, /ENABLE ROW LEVEL SECURITY/);
+    assert.match(source, /REVOKE ALL PRIVILEGES/);
+  }
+});
