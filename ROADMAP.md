@@ -20,7 +20,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Persistent opaque sessions, HttpOnly cookie, logout/revocation and basic process-local rate limits (live deployment verification still pending)
 - [x] Display name and username editing API + frontend UI (live database integration pending)
 - [ ] Avatar upload and profile image management
-- [ ] Privacy controls and block/report tools
+- [x] Block/unblock controls and report submission API/UI
 
 ## Phase 3 — Contacts and messaging
 - [x] Backend username search and contact-request API
