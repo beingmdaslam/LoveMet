@@ -50,7 +50,7 @@ export default {
         return unavailable("API");
       }
     }
-    if (pathname === "/api/calls/config" || pathname === "/api/calls/history") {
+    if (pathname === "/api/calls/config" || pathname === "/api/calls/history" || pathname === "/api/calls/status" || pathname === "/api/calls/invites") {
       try {
         return await withDatabase(env, client => handleCallsRead(request, client, env));
       } catch {
