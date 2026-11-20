@@ -22,6 +22,12 @@ const requestLimits = new Map();
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 8 * 1024;
 
+function publicUser(user) {
+  if (!user) return null;
+  const { phone_e164, ...safeUser } = user;
+  return safeUser;
+}
+
 function parsePhone(value) {
   try { return normalizePhone(value); }
   catch (error) { error.status = 400; throw error; }
@@ -228,7 +234,7 @@ async function handleAuthRequest(req, res, pathname) {
           `INSERT INTO users (phone_e164, phone_verified_at)
            VALUES ($1, NOW())
            ON CONFLICT (phone_e164) DO UPDATE SET phone_verified_at = COALESCE(users.phone_verified_at, NOW()), updated_at = NOW()
-           RETURNING id, phone_e164, display_name, username, avatar_url`,
+           RETURNING id, display_name, username, avatar_url`,
           [phone]
         );
         user = userResult.rows[0];
@@ -247,13 +253,13 @@ async function handleAuthRequest(req, res, pathname) {
 
       const secure = req.socket.encrypted || req.headers["x-forwarded-proto"] === "https";
       const cookie = `lovemet_session=${encodeURIComponent(sessionToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}${secure ? "; Secure" : ""}`;
-      json(res, 200, { ok: true, user }, { "Set-Cookie": cookie });
+      json(res, 200, { ok: true, user: publicUser(user) }, { "Set-Cookie": cookie });
       return true;
     }
 
     if (pathname === "/api/auth/me" && req.method === "GET") {
       const user = await currentUser(req);
-      json(res, user ? 200 : 401, user ? { user } : { error: "Not signed in." });
+      json(res, user ? 200 : 401, user ? { user: publicUser(user) } : { error: "Not signed in." });
       return true;
     }
 
