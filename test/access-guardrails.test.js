@@ -102,3 +102,22 @@ test("unexpected signaling socket close releases call media and invitation state
   assert.match(html, /localStream\.getTracks\(\)\.forEach\(track => track\.stop\(\)\)/);
   assert.match(html, /if \(activeCallInvite\)[\s\S]*action:"end"/);
 });
+
+
+test("live chat WebSocket authenticates sessions and checks same-origin connections", () => {
+  const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
+  assert.match(server, /path: "\/chat"/);
+  assert.match(server, /origin\.host === req\.headers\.host/);
+  assert.match(server, /const user = await getUser\(req\)/);
+  assert.match(server, /addClient\(user\.id, ws\)/);
+  assert.match(server, /Chat socket is receive-only/);
+});
+
+test("new chat messages are broadcast only to the two participants", () => {
+  const social = fs.readFileSync(path.join(root, "src/social.js"), "utf8");
+  const realtime = fs.readFileSync(path.join(root, "src/realtime.js"), "utf8");
+  assert.match(social, /if \(!\(await isContact\(user\.id, contactId\)\)\)/);
+  assert.match(social, /publishMessage\(result\.rows\[0\]\)/);
+  assert.match(realtime, /\[message\.sender_id, message\.recipient_id\]/);
+  assert.match(realtime, /type: "message"/);
+});
