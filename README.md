@@ -70,5 +70,6 @@ Before live integration, configure these server-side environment variables in th
 - `DATABASE_SSL=true`: when required by the selected Supabase connection method.
 - `OTP_HASH_SECRET`: a unique random secret of at least 32 characters.
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`: valid Twilio SMS credentials and sender.
+- Optional `TURN_URLS` and `TURN_SHARED_SECRET`: TURN relay URLs and a private shared secret for short-lived, per-user TURN credentials. The browser receives only a 10-minute credential, never the shared secret.
 
 Never commit real credentials or paste them into source files. Deployment is intentionally deferred until development and tests are complete and separately approved.
