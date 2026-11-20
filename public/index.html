@@ -44,7 +44,7 @@
   const roomInput = $("room"), status = $("status"), joinBtn = $("joinBtn");
   const localVideo = $("localVideo"), remoteVideo = $("remoteVideo");
   const micBtn = $("micBtn"), cameraBtn = $("cameraBtn"), leaveBtn = $("leaveBtn");
-  let socket, localStream, peer, joined = false, micOn = true, cameraOn = true;
+  let socket, localStream, peer, joined = false, isInitiator = false, micOn = true, cameraOn = true;
 
   function say(message) { status.textContent = message; }
   function send(type, data) {
@@ -75,12 +75,12 @@
         const msg = JSON.parse(event.data);
         try {
           if (msg.type === "joined") {
-            joined = true; roomInput.value = msg.roomId; roomInput.disabled = true;
+            joined = true; isInitiator = !!msg.isInitiator; roomInput.value = msg.roomId; roomInput.disabled = true;
             say("Room " + msg.roomId + " ready. Share this code with the other person.");
             leaveBtn.disabled = micBtn.disabled = cameraBtn.disabled = false;
           } else if (msg.type === "peer-joined") {
             say("The other person joined. Connecting…");
-            if (peer.signalingState === "stable") {
+            if (isInitiator && peer.signalingState === "stable") {
               const offer = await peer.createOffer();
               await peer.setLocalDescription(offer); send("offer", offer);
             }
