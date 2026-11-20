@@ -198,6 +198,7 @@ async function handleSocialRequest(req, res, pathname) {
         `SELECT c.id, c.created_at, u.id AS user_id, u.username, u.display_name, u.avatar_url
          FROM contact_requests c JOIN users u ON u.id = c.requester_id
          WHERE c.recipient_id = $1 AND c.status = 'pending'
+           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = u.id) OR (b.blocker_id = u.id AND b.blocked_id = $1))
          ORDER BY c.created_at DESC LIMIT 50`,
         [user.id]
       );
@@ -215,6 +216,14 @@ async function handleSocialRequest(req, res, pathname) {
       const target = await pool.query("SELECT id FROM users WHERE username = $1 LIMIT 1", [username]);
       if (!target.rowCount) {
         json(res, 404, { error: "User not found." });
+        return true;
+      }
+      const blocked = await pool.query(
+        "SELECT 1 FROM user_blocks WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1) LIMIT 1",
+        [user.id, target.rows[0].id]
+      );
+      if (blocked.rowCount) {
+        json(res, 403, { error: "Contact requests are unavailable between these accounts." });
         return true;
       }
       if (target.rows[0].id === user.id) {
