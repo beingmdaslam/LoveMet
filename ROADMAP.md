@@ -32,6 +32,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Backend one-to-one text-message send/read API
 - [x] Basic frontend one-to-one chat UI (live integration pending)
 - [x] Basic 4-second chat polling and read-receipt timestamps (push delivery still pending)
+- [x] Bounded 50-message history pages with stable timestamp/UUID cursor and load-older UI
 - [ ] Safe handling of attachments (if enabled)
 
 ## Phase 4 — Call management
