@@ -208,3 +208,13 @@ test('call room refuses non-participants before allocating a WebSocket', async (
  assert.equal(response.status, 403);
  assert.equal(sockets.length, 0);
 });
+
+test('call room rejects UUID-shaped values that are not canonical UUIDs', async () => {
+ const { room, sockets } = setup();
+ const malformed = '111111111111111111111111111111111111';
+ const response = await room.fetch(new Request('https://lovemet.example/signal?roomId=' + malformed, {
+  headers: { Upgrade: 'websocket', Origin: 'https://lovemet.example' }
+ }));
+ assert.equal(response.status, 400);
+ assert.equal(sockets.length, 0);
+});
