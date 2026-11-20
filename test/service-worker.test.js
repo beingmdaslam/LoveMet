@@ -13,7 +13,7 @@ function loadFetchHandler() {
     skipWaiting() {},
     addEventListener(name, handler) { listeners[name] = handler; }
   };
-  vm.runInNewContext(source, { self, URL, caches: {}, fetch() {} });
+  vm.runInNewContext(source, { self, URL, caches: { match() { return Promise.resolve(undefined); } }, fetch() { return Promise.reject(new Error("offline")); } });
   return listeners.fetch;
 }
 
