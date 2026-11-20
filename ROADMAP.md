@@ -34,6 +34,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] HTTP polling fallback for chat when live sockets are unavailable
 - [x] Authenticated same-origin WebSocket live message delivery to sender and recipient
 - [x] Immediate read-receipt delivery to the original sender
+- [x] Same-origin WebSocket authentication, periodic session revalidation, and per-account socket limits
 - [x] Bounded 50-message history pages with stable timestamp/UUID cursor and load-older UI
 - [ ] Safe handling of attachments (if enabled)
 
