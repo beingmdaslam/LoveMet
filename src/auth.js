@@ -133,9 +133,9 @@ async function currentUser(req) {
 }
 
 async function handleAuthRequest(req, res, pathname) {
-  if (!pathname.startsWith("/api/auth/") && pathname !== "/api/profile") return false;
-  if (!["POST", "GET", "PATCH"].includes(req.method)) {
-    json(res, 405, { error: "Method not allowed." }, { Allow: "GET, POST, PATCH" });
+  if (!pathname.startsWith("/api/auth/") && pathname !== "/api/profile" && pathname !== "/api/account") return false;
+  if (!["POST", "GET", "PATCH", "DELETE"].includes(req.method)) {
+    json(res, 405, { error: "Method not allowed." }, { Allow: "GET, POST, PATCH, DELETE" });
     return true;
   }
   if (!pool) {
@@ -289,6 +289,28 @@ async function handleAuthRequest(req, res, pathname) {
         }
         throw error;
       }
+      return true;
+    }
+
+    if (pathname === "/api/account" && req.method === "DELETE") {
+      const user = await currentUser(req);
+      if (!user) {
+        json(res, 401, { error: "Sign in to delete your account." });
+        return true;
+      }
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("DELETE FROM otp_challenges WHERE phone_e164 = $1", [user.phone_e164]);
+        await client.query("DELETE FROM users WHERE id = $1", [user.id]);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+      json(res, 200, { ok: true }, { "Set-Cookie": cookieOptions(req, 0) });
       return true;
     }
 
