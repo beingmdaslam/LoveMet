@@ -143,14 +143,15 @@ test('call room permits a teardown hangup after the invitation authorization has
 });
 
 test('call room keeps the earliest reconnect expiry alarm when both peers disconnect', async () => {
- const { room, sockets, values, alarm } = setup();
+ const state = setup();
+ const { room, sockets, values } = state;
  const a = socket('u1'); const b = socket('u2'); sockets.push(a, b);
  await room.webSocketMessage(a, JSON.stringify({ type: 'join', roomId }));
  await room.webSocketMessage(b, JSON.stringify({ type: 'join', roomId }));
  a.readyState = 3; await room.webSocketClose(a, 1006, 'first network loss');
- const firstAlarm = alarm;
+ const firstAlarm = state.alarm;
  b.readyState = 3; await room.webSocketClose(b, 1006, 'second network loss');
- assert.equal(alarm, firstAlarm);
+ assert.equal(state.alarm, firstAlarm);
  assert.ok(values.has('reconnect:' + roomId + ':u1'));
  assert.ok(values.has('reconnect:' + roomId + ':u2'));
 });
