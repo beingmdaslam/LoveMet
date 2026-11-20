@@ -3,6 +3,7 @@ import { handleAuthMe } from "./auth.mjs";
 import { handleProfilePatch } from "./profile.mjs";
 import { handleContactsGet } from "./contacts.mjs";
 import { handleMessages } from "./messages.mjs";
+import { handleUserLookup } from "./users.mjs";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -32,6 +33,13 @@ export default {
 
     // Fail closed until the Fetch-native API and Durable Object signaling
     // adapters have passed parity and integration tests.
+    if (pathname === "/api/users/search" || pathname === "/api/contacts/blocks") {
+      try {
+        return await withDatabase(env, client => handleUserLookup(request, client, env));
+      } catch {
+        return unavailable("API");
+      }
+    }
     if (pathname === "/api/messages") {
       try {
         return await withDatabase(env, client => handleMessages(request, client, env));
