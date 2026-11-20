@@ -94,3 +94,11 @@ test("WebSocket revalidates call authorization before relaying signaling packets
   assert.match(relay, /FROM user_blocks b/);
   assert.match(relay, /ws\.close\(1008, "Call authorization expired"\)/);
 });
+
+
+test("unexpected signaling socket close releases call media and invitation state", () => {
+  const html = fs.readFileSync(path.join(root, "public/index.html"), "utf8");
+  assert.match(html, /socket\.onclose = \(\) => \{ const wasJoined = joined; cleanup\(false\);/);
+  assert.match(html, /localStream\.getTracks\(\)\.forEach\(track => track\.stop\(\)\)/);
+  assert.match(html, /if \(activeCallInvite\)[\s\S]*action:"end"/);
+});
