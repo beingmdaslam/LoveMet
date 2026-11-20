@@ -30,11 +30,19 @@
   <section class="panel" style="margin-bottom:16px">
     <h2 style="margin:0 0 14px">Your LoveMet account</h2>
     <div id="authArea" class="subpanel">
-      <p class="hint">Sign in with your phone number in international format, for example +9665XXXXXXXX.</p>
-      <label for="phone">Phone number</label><input class="field" id="phone" type="tel" autocomplete="tel" placeholder="+9665XXXXXXXX">
-      <div class="rowActions"><button id="sendOtpBtn">Send verification code</button></div>
-      <div id="otpArea" class="hidden"><label for="otp">6-digit verification code</label><input class="field" id="otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Enter code"><button id="verifyOtpBtn">Verify and sign in</button></div>
-      <p class="hint" id="authStatus" role="status">OTP sign-in becomes active after database and SMS setup.</p>
+      <p class="hint">Sign in using free-tier email OTP, or choose phone SMS if available.</p>
+      <div class="rowActions"><button class="secondary" id="emailModeBtn" type="button">Email OTP</button><button class="secondary" id="phoneModeBtn" type="button">Phone SMS</button></div>
+      <div id="emailAuthArea">
+        <label for="email">Email address</label><input class="field" id="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com">
+        <div class="rowActions"><button id="sendEmailOtpBtn" type="button">Send free email code</button></div>
+        <div id="emailOtpArea" class="hidden"><label for="emailOtp">6-digit verification code</label><input class="field" id="emailOtp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Enter code"><button id="verifyEmailOtpBtn" type="button">Verify and sign in</button></div>
+      </div>
+      <div id="phoneAuthArea" class="hidden">
+        <label for="phone">Phone number</label><input class="field" id="phone" type="tel" autocomplete="tel" placeholder="+9665XXXXXXXX">
+        <div class="rowActions"><button id="sendOtpBtn" type="button">Send SMS code</button></div>
+        <div id="otpArea" class="hidden"><label for="otp">6-digit verification code</label><input class="field" id="otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Enter code"><button id="verifyOtpBtn" type="button">Verify and sign in</button></div>
+      </div>
+      <p class="hint" id="authStatus" role="status">Email OTP requires a verified sender and free-tier email provider setup.</p>
     </div>
     <div id="signedInArea" class="hidden">
       <div class="accountGrid">
@@ -93,6 +101,10 @@
     try{const d=await api("/api/auth/me");currentUserId=d.user.id;connectChatSocket();auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";await Promise.all([contacts(),requests(),callHistory(),blockedUsers()]);}
     catch{signed.classList.add("hidden");auth.classList.remove("hidden");}
   }
+  $("emailModeBtn").onclick=()=>{$("emailAuthArea").classList.remove("hidden");$("phoneAuthArea").classList.add("hidden");say("authStatus","Email OTP selected.");};
+  $("phoneModeBtn").onclick=()=>{$("phoneAuthArea").classList.remove("hidden");$("emailAuthArea").classList.add("hidden");say("authStatus","Phone SMS selected. SMS provider charges may apply.");};
+  $("sendEmailOtpBtn").onclick=async()=>{try{say("authStatus","Sending email code…");await api("/api/auth/request-email-otp",{method:"POST",body:JSON.stringify({email:$("email").value.trim()})});$("emailOtpArea").classList.remove("hidden");say("authStatus","If the email can receive messages, a verification code has been sent.");}catch(e){say("authStatus",e.message);}};
+  $("verifyEmailOtpBtn").onclick=async()=>{try{const d=await api("/api/auth/verify-email-otp",{method:"POST",body:JSON.stringify({email:$("email").value.trim(),code:$("emailOtp").value.trim()})});currentUserId=d.user.id;connectChatSocket();auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";say("authStatus","Signed in.");await Promise.all([contacts(),requests(),callHistory(),blockedUsers()]);}catch(e){say("authStatus",e.message);}};
   $("sendOtpBtn").onclick=async()=>{try{say("authStatus","Sending…");await api("/api/auth/request-otp",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim()})});$("otpArea").classList.remove("hidden");say("authStatus","If SMS is configured, a code has been sent.");}catch(e){say("authStatus",e.message);}};
   $("verifyOtpBtn").onclick=async()=>{try{const d=await api("/api/auth/verify-otp",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim(),code:$("otp").value.trim()})});currentUserId=d.user.id;connectChatSocket();auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";say("authStatus","Signed in.");await Promise.all([contacts(),requests(),callHistory(),blockedUsers()]);}catch(e){say("authStatus",e.message);}};
   $("saveProfileBtn").onclick=async()=>{try{const d=await api("/api/profile",{method:"PATCH",body:JSON.stringify({displayName:$("displayName").value,username:$("username").value})});$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";say("profileStatus","Profile saved.");}catch(e){say("profileStatus",e.message);}};
