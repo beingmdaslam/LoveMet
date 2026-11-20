@@ -63,13 +63,40 @@ export class CallRooms {
   for (const peer of this.ctx.getWebSockets()) { const other = peer.deserializeAttachment(); if (other?.joined && other.roomId === attachment.roomId) send(peer, { type: 'peer-disconnected' }); }
  }
  async alarm() {
-  const entries = await this.ctx.storage.list({ prefix: 'reconnect:' }); let nextAlarm = Infinity;
+  const now = Date.now();
+  const entries = await this.ctx.storage.list({ prefix: 'reconnect:' });
+  let nextAlarm = Infinity;
   for (const [key, value] of entries) {
-   if (value.expiresAt <= Date.now()) {
-    await this.ctx.storage.delete(key); const parts = key.split(':'); const roomId = parts[1];
-    for (const peer of this.ctx.getWebSockets()) { const attachment = peer.deserializeAttachment(); if (attachment?.joined && attachment.roomId === roomId) send(peer, { type: 'peer-left' }); }
+   if (value.expiresAt <= now) {
+    await this.ctx.storage.delete(key);
+    const parts = key.split(':');
+    const roomId = parts[1];
+    for (const peer of this.ctx.getWebSockets()) {
+     const attachment = peer.deserializeAttachment();
+     if (attachment?.joined && attachment.roomId === roomId) send(peer, { type: 'peer-left' });
+    }
    } else nextAlarm = Math.min(nextAlarm, value.expiresAt);
   }
+  let hasSockets = false;
+  for (const ws of this.ctx.getWebSockets()) {
+   const attachment = ws.deserializeAttachment();
+   if (!attachment) { ws.close(1008, 'Missing session'); continue; }
+   try {
+    const permission = attachment.joined && attachment.roomId
+     ? await this.authorize(attachment, attachment.roomId)
+     : await withDatabase(this.env, client => client.query('SELECT 1 FROM sessions WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1', [attachment.tokenHash, attachment.userId]));
+    if (!permission.rowCount) { ws.close(1008, 'Session or call invitation expired'); continue; }
+    attachment.authFailures = 0;
+    ws.serializeAttachment(attachment);
+    hasSockets = true;
+   } catch {
+    attachment.authFailures = Number(attachment.authFailures || 0) + 1;
+    ws.serializeAttachment(attachment);
+    if (attachment.authFailures >= 3) ws.close(1011, 'Call authorization unavailable');
+    else hasSockets = true;
+   }
+  }
+  if (hasSockets) nextAlarm = Math.min(nextAlarm, now + 60000);
   if (Number.isFinite(nextAlarm)) await this.ctx.storage.setAlarm(nextAlarm);
  }
 }
