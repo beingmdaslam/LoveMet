@@ -459,10 +459,11 @@ async function handleSocialRequest(req, res, pathname) {
         [user.id, contactId]
       );
       const beforeRaw = url.searchParams.get("before");
+      const beforeId = url.searchParams.get("beforeId");
       let before = null;
-      if (beforeRaw !== null) {
-        const parsedBefore = new Date(beforeRaw);
-        if (!Number.isFinite(parsedBefore.getTime())) {
+      if (beforeRaw !== null || beforeId !== null) {
+        const parsedBefore = new Date(beforeRaw || "");
+        if (!Number.isFinite(parsedBefore.getTime()) || !/^[0-9a-f-]{36}$/i.test(beforeId || "")) {
           json(res, 400, { error: "Invalid message cursor." });
           return true;
         }
@@ -472,9 +473,9 @@ async function handleSocialRequest(req, res, pathname) {
         `SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at
          FROM messages
          WHERE ((sender_id = $1 AND recipient_id = $2) OR (sender_id = $2 AND recipient_id = $1))
-           AND ($3::timestamptz IS NULL OR created_at < $3::timestamptz)
+           AND ($3::timestamptz IS NULL OR (created_at, id) < ($3::timestamptz, $4::uuid))
          ORDER BY created_at DESC, id DESC LIMIT 51`,
-        [user.id, contactId, before]
+        [user.id, contactId, before, beforeId]
       );
       const hasMore = result.rows.length > 50;
       const page = result.rows.slice(0, 50).reverse();
