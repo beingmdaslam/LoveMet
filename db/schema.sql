@@ -31,3 +31,34 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
+
+
+-- Contact requests are directional until accepted by the recipient.
+CREATE TABLE IF NOT EXISTS contact_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'blocked')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (requester_id <> recipient_id),
+  UNIQUE (requester_id, recipient_id)
+);
+CREATE INDEX IF NOT EXISTS contact_requests_recipient_status_idx
+  ON contact_requests (recipient_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS contact_requests_requester_status_idx
+  ON contact_requests (requester_id, status, created_at DESC);
+
+-- Messages are available only after a contact request is accepted.
+CREATE TABLE IF NOT EXISTS messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  delivered_at TIMESTAMPTZ,
+  read_at TIMESTAMPTZ,
+  CHECK (sender_id <> recipient_id)
+);
+CREATE INDEX IF NOT EXISTS messages_conversation_idx
+  ON messages (sender_id, recipient_id, created_at DESC);
