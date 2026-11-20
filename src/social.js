@@ -279,7 +279,7 @@ async function handleSocialRequest(req, res, pathname) {
         );
       } else {
         result = await pool.query(
-          `UPDATE call_invites SET status = 'ended', updated_at = NOW()
+          `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
            WHERE id = $1 AND (caller_id = $2 OR callee_id = $2) AND status = 'accepted'
            RETURNING id, caller_id, callee_id, status`,
           [inviteId, user.id]
