@@ -11,6 +11,7 @@ test("server and backend JavaScript files parse", () => {
     "server.js",
     "src/auth.js",
     "src/security.js",
+    "src/realtime.js",
     "src/social.js",
     "public/sw.js"
   ];
