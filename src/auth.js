@@ -180,7 +180,7 @@ async function handleAuthRequest(req, res, pathname) {
         return true;
       }
       const code = String(body.code || "");
-      if (!/^\\d{6}$/.test(code)) {
+      if (!/^\d{6}$/.test(code)) {
         json(res, 400, { error: "Enter the six-digit verification code." });
         return true;
       }
