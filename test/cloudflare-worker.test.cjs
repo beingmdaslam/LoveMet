@@ -97,3 +97,33 @@ test("Cloudflare Worker rejects non-WebSocket signaling requests before Durable 
   assert.equal(upgradeResponse.status, 426);
   assert.equal(lookups, 0);
 });
+
+test("Cloudflare Worker rejects non-WebSocket chat requests before database or Durable Object access", async () => {
+  const worker = await getWorker();
+  let databaseCalls = 0;
+  let objectLookups = 0;
+  const env = {
+    HYPERDRIVE: { connectionString: "postgres://unused" },
+    USER_EVENTS: { idFromName() { objectLookups += 1; throw new Error("must not look up a user room"); } }
+  };
+  for (const request of [
+    new Request("https://example.test/chat", { method: "POST", headers: { Upgrade: "websocket" } }),
+    new Request("https://example.test/chat")
+  ]) {
+    const response = await worker.fetch(request, env);
+    assert.equal(response.status, 426);
+    assert.equal(response.headers.get("content-type"), "text/plain;charset=UTF-8");
+  }
+  assert.equal(databaseCalls, 0);
+  assert.equal(objectLookups, 0);
+});
+
+test("Cloudflare Worker rejects missing signaling room IDs before Durable Object lookup", async () => {
+  const worker = await getWorker();
+  let lookups = 0;
+  const response = await worker.fetch(new Request("https://example.test/signal", {
+    headers: { Upgrade: "websocket" }
+  }), { CALL_ROOMS: { idFromName() { lookups += 1; throw new Error("must not allocate a room"); } } });
+  assert.equal(response.status, 400);
+  assert.equal(lookups, 0);
+});
