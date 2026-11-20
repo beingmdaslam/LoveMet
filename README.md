@@ -9,6 +9,9 @@ LoveMet is an early one-to-one video calling prototype.
 - WebSocket signaling for WebRTC offer/answer/ICE exchange
 - Responsive mobile-first interface
 
+## Health check
+The unauthenticated `GET /healthz` endpoint returns HTTP 200 only when the backend can query PostgreSQL, otherwise HTTP 503. It does not expose connection strings or secrets.
+
 ## Run locally
 1. Install Node.js 20 or newer.
 2. Clone this repository.
