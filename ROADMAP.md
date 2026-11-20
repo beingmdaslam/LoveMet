@@ -37,7 +37,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Push notifications for incoming calls/messages
 
 ## Phase 5 — Android experience
-- [ ] Installable PWA baseline
+- [x] Installable PWA baseline (manifest, app icon, and privacy-safe shell service worker)
 - [ ] Native Android wrapper/app decision
 - [ ] Background/lock-screen call behavior
 - [ ] Bluetooth headset and speaker routing
