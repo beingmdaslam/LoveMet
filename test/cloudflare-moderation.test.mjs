@@ -13,14 +13,18 @@ function db({ total = 2, target = true, report = [{ id: 'rep1', status: 'open', 
   return { rowCount: 0, rows: [] };
  } };
 }
+function eventSink() {
+ const events = [];
+ return { events, USER_EVENTS: { idFromName: userId => userId, get: userId => ({ fetch: async (_url, init) => { events.push({ userId, event: JSON.parse(init.body) }); return new Response(null, { status: 200 }); } }) } };
+}
 function req(path, body) { return new Request('https://lovemet.example' + path, { method: 'POST', headers: { origin: 'https://lovemet.example', cookie: 'lovemet_session=' + token, 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
 test('blocking locks the pair, inserts the block and ends active calls', async () => {
- const client = db(); const response = await handleModeration(req('/api/contacts/block', { userId: '22222222-2222-4222-8222-222222222222' }), client);
- assert.equal(response.status, 200); const sql = client.calls.map(call => call.sql); assert.ok(sql.includes('BEGIN')); assert.ok(sql.includes('COMMIT')); assert.ok(sql.some(value => value.includes('pg_advisory_xact_lock'))); assert.ok(sql.some(value => value.includes('INSERT INTO user_blocks'))); assert.ok(sql.some(value => value.includes('UPDATE call_invites')));
+ const client = db(); const sink = eventSink(); const response = await handleModeration(req('/api/contacts/block', { userId: '22222222-2222-4222-8222-222222222222' }), client, sink);
+ assert.equal(response.status, 200); const sql = client.calls.map(call => call.sql); assert.ok(sql.includes('BEGIN')); assert.ok(sql.includes('COMMIT')); assert.ok(sql.some(value => value.includes('pg_advisory_xact_lock'))); assert.ok(sql.some(value => value.includes('INSERT INTO user_blocks'))); assert.ok(sql.some(value => value.includes('UPDATE call_invites'))); assert.deepEqual(sink.events.map(item => [item.userId, item.event.type]).sort(), [['22222222-2222-4222-8222-222222222222','call-update'],['22222222-2222-4222-8222-222222222222','contact-update'],['u1','call-update'],['u1','contact-update']].sort());
 });
 test('unblock only removes a block owned by the signed-in user', async () => {
- const client = db(); const response = await handleModeration(req('/api/contacts/unblock', { userId: '22222222-2222-4222-8222-222222222222' }), client);
- assert.equal(response.status, 200); assert.deepEqual(await response.json(), { ok: true, unblocked: true }); assert.deepEqual(client.calls.at(-1).args, ['u1', '22222222-2222-4222-8222-222222222222']);
+ const client = db(); const sink = eventSink(); const response = await handleModeration(req('/api/contacts/unblock', { userId: '22222222-2222-4222-8222-222222222222' }), client, sink);
+ assert.equal(response.status, 200); assert.deepEqual(await response.json(), { ok: true, unblocked: true }); assert.deepEqual(client.calls.at(-1).args, ['u1', '22222222-2222-4222-8222-222222222222']); assert.equal(sink.events.length, 2); assert.ok(sink.events.every(item => item.event.type === 'contact-update'));
 });
 test('report submission serializes per reporter and enforces the daily cap', async () => {
  const client = db(); const response = await handleModeration(req('/api/users/report', { userId: '22222222-2222-4222-8222-222222222222', reason: 'spam', details: 'Repeated spam' }), client);
