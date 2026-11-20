@@ -50,7 +50,8 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Threat model and abuse prevention
 - [ ] Authentication and authorization tests
 - [ ] Secure signaling and input validation
-- [ ] Data retention and account deletion
+- [x] Authenticated account deletion with cascading removal of contacts, messages, sessions, call history, and OTP challenges
+- [ ] Formal retention schedule and deletion-request policy
 - [x] Draft privacy notice and terms pages (operator/legal review and contact details required before launch)
 - [ ] Accessibility and low-bandwidth behavior
 - [ ] Automated tests and production readiness review
