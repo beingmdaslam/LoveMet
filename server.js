@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const WebSocket = require("ws");
 const { handleAuthRequest } = require("./src/auth");
+const { handleSocialRequest } = require("./src/social");
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -11,6 +12,7 @@ const rooms = new Map();
 const server = http.createServer(async (req, res) => {
   const pathname = new URL(req.url, "http://localhost").pathname;
   if (await handleAuthRequest(req, res, pathname)) return;
+  if (await handleSocialRequest(req, res, pathname)) return;
   const requested = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const filePath = path.resolve(PUBLIC_DIR, requested);
 
