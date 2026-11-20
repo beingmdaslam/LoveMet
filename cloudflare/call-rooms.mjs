@@ -68,8 +68,12 @@ export class CallRooms {
    return;
   }
   if (!attachment.joined || !attachment.roomId || !['offer','answer','ice','hangup'].includes(message.type)) { send(ws, { type: 'error', message: 'Join a room first.' }); return; }
-  let permission; try { permission = await this.authorize(attachment, attachment.roomId); } catch { ws.close(1011, 'Call authorization unavailable'); return; }
-  if (!permission.rowCount) { send(ws, { type: 'error', message: 'This call is no longer authorized.' }); ws.close(1008, 'Call authorization expired'); return; }
+  // Match the Node backend: hangup is a teardown signal and remains allowed
+  // after the invitation is ended; negotiation packets require live authorization.
+  if (message.type !== 'hangup') {
+   let permission; try { permission = await this.authorize(attachment, attachment.roomId); } catch { ws.close(1011, 'Call authorization unavailable'); return; }
+   if (!permission.rowCount) { send(ws, { type: 'error', message: 'This call is no longer authorized.' }); ws.close(1008, 'Call authorization expired'); return; }
+  }
   for (const peer of this.ctx.getWebSockets()) { const other = peer.deserializeAttachment(); if (peer !== ws && other?.joined && other.roomId === attachment.roomId) send(peer, { type: message.type, data: message.data }); }
  }
  async webSocketClose(ws, code, reason) {
