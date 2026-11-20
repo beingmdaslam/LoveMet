@@ -99,11 +99,21 @@ test("WebSocket revalidates call authorization before relaying signaling packets
 });
 
 
-test("unexpected signaling socket close releases call media and invitation state", () => {
+test("brief signaling disconnects preserve media and retry the accepted call", () => {
   const html = fs.readFileSync(path.join(root, "public/index.html"), "utf8");
-  assert.match(html, /socket\.onclose = \(\) => \{ const wasJoined = joined; cleanup\(false\);/);
+  const signaling = server.slice(server.indexOf('const wss = new WebSocket.Server'), server.indexOf('server.listen'));
+  assert.match(html, /callReconnectDeadline = Date\.now\(\) \+ 22000/);
+  assert.match(html, /connectSignal\(roomId\)/);
+  assert.match(html, /type === "peer-disconnected"/);
+  assert.match(html, /type === "peer-rejoined"/);
+  assert.match(html, /peer\.restartIce\(\)/);
+  assert.match(html, /if \(callReconnectTimer\) \{ window\.clearTimeout\(callReconnectTimer\)/);
   assert.match(html, /localStream\.getTracks\(\)\.forEach\(track => track\.stop\(\)\)/);
-  assert.match(html, /if \(activeCallInvite\)[\s\S]*action:"end"/);
+  assert.match(signaling, /CALL_RECONNECT_GRACE_MS = 25000/);
+  assert.match(signaling, /disconnected: true/);
+  assert.match(signaling, /type: "peer-disconnected"/);
+  assert.match(signaling, /type: "peer-left"/);
+  assert.match(signaling, /existingMember\.disconnected && existingMember\.reconnectTimer/);
 });
 
 
