@@ -191,6 +191,12 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 400, { error: "Provide a valid call invitation." });
         return true;
       }
+      await pool.query(
+        `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
+         WHERE id = $1 AND status = 'accepted' AND expires_at <= NOW()
+           AND (caller_id = $2 OR callee_id = $2)`,
+        [inviteId, user.id]
+      );
       const result = await pool.query(
         `SELECT id, status, expires_at FROM call_invites
          WHERE id = $1 AND (caller_id = $2 OR callee_id = $2) LIMIT 1`,
@@ -227,6 +233,11 @@ async function handleSocialRequest(req, res, pathname) {
       await pool.query(
         `UPDATE call_invites SET status = 'missed', updated_at = NOW(), ended_at = NOW()
          WHERE (callee_id = $1 OR caller_id = $1) AND status = 'ringing' AND expires_at <= NOW()`,
+        [user.id]
+      );
+      await pool.query(
+        `UPDATE call_invites SET status = 'ended', updated_at = NOW(), ended_at = NOW()
+         WHERE (caller_id = $1 OR callee_id = $1) AND status = 'accepted' AND expires_at <= NOW()`,
         [user.id]
       );
       const result = await pool.query(
