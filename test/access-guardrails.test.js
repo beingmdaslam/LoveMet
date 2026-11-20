@@ -236,3 +236,13 @@ test("live chat reconnects when mobile network returns or app tab becomes visibl
   assert.match(frontend, /document\.addEventListener\("visibilitychange",\s*\(\)\s*=>\s*\{\s*if\(!document\.hidden&&currentUserId\)connectChatSocket\(\)/);
   assert.match(frontend, /WebSocket\.OPEN,WebSocket\.CONNECTING/);
 });
+
+
+test("active call participant lookups have narrow expiry indexes in schema and migration", () => {
+  const schema = fs.readFileSync(path.join(root, "db/schema.sql"), "utf8");
+  const migration = fs.readFileSync(path.join(root, "db/migrations/20261120_add_active_call_participant_indexes.sql"), "utf8");
+  for (const source of [schema, migration]) {
+    assert.match(source, /call_invites_active_caller_expiry_idx[\\s\\S]*ON (?:public\\.)?call_invites \\(caller_id, expires_at\\)[\\s\\S]*WHERE status IN \\('ringing', 'accepted'\\)/);
+    assert.match(source, /call_invites_active_callee_expiry_idx[\\s\\S]*ON (?:public\\.)?call_invites \\(callee_id, expires_at\\)[\\s\\S]*WHERE status IN \\('ringing', 'accepted'\\)/);
+  }
+});
