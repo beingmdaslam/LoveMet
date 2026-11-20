@@ -33,3 +33,13 @@ test("account deletion runs in a transaction and clears OTP challenges", () => {
   assert.match(auth, /DELETE FROM users WHERE id = \$1/);
   assert.match(auth, /await client\.query\("COMMIT"\)/);
 });
+
+test("profile API does not return the private phone number", () => {
+  assert.match(auth, /UPDATE users SET display_name = \$2, username = \$3[\s\S]*RETURNING id, display_name, username, avatar_url/);
+  assert.doesNotMatch(auth, /UPDATE users SET display_name = \$2, username = \$3[\s\S]*RETURNING id, phone_e164/);
+});
+
+test("OTP rate limiter caps attacker-controlled key growth", () => {
+  assert.match(auth, /requestLimits\.size >= 20000/);
+  assert.match(auth, /if \(!entry && requestLimits\.size >= 20000\) return false/);
+});
