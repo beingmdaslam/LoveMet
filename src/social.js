@@ -1,5 +1,5 @@
 const { pool } = require("./auth");
-const { publishMessage } = require("./realtime");
+const { publishMessage, publishReadReceipt } = require("./realtime");
 
 const MAX_BODY_BYTES = 8 * 1024;
 
@@ -518,12 +518,16 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 403, { error: "Messages are available only with accepted contacts." });
         return true;
       }
-      await pool.query(
+      const readUpdates = await pool.query(
         `UPDATE messages
          SET delivered_at = COALESCE(delivered_at, NOW()), read_at = NOW()
-         WHERE sender_id = $2 AND recipient_id = $1 AND read_at IS NULL`,
+         WHERE sender_id = $2 AND recipient_id = $1 AND read_at IS NULL
+         RETURNING id`,
         [user.id, contactId]
       );
+      if (readUpdates.rowCount) {
+        publishReadReceipt(contactId, user.id, readUpdates.rows.map(row => row.id), new Date().toISOString());
+      }
       const beforeRaw = url.searchParams.get("before");
       const beforeId = url.searchParams.get("beforeId");
       let before = null;
