@@ -171,6 +171,20 @@ async function handleSocialRequest(req, res, pathname) {
       return true;
     }
 
+    if (pathname === "/api/calls/config" && req.method === "GET") {
+      const iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
+      const turnUrls = String(process.env.TURN_URLS || "").split(",").map(value => value.trim()).filter(value => /^(turn|turns):/i.test(value));
+      const sharedSecret = process.env.TURN_SHARED_SECRET || "";
+      if (turnUrls.length && sharedSecret.length >= 32) {
+        const expiresAt = Math.floor(Date.now() / 1000) + 600;
+        const username = expiresAt + ":" + user.id;
+        const credential = require("node:crypto").createHmac("sha1", sharedSecret).update(username).digest("base64");
+        iceServers.push({ urls: turnUrls, username, credential });
+      }
+      json(res, 200, { iceServers });
+      return true;
+    }
+
     if (pathname === "/api/calls/history" && req.method === "GET") {
       const result = await pool.query(
         `SELECT c.id, c.status, c.created_at, c.started_at, c.ended_at,
