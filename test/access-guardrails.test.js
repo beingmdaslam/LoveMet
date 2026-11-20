@@ -40,9 +40,11 @@ test("profile API does not return the private phone number", () => {
   assert.doesNotMatch(auth, /UPDATE users SET display_name = \$2, username = \$3[\s\S]*RETURNING id, phone_e164/);
 });
 
-test("OTP rate limiter caps attacker-controlled key growth", () => {
-  assert.match(auth, /requestLimits\.size >= 20000/);
-  assert.match(auth, /if \(!entry && requestLimits\.size >= 20000\) return false/);
+test("OTP rate limiting uses shared atomic database counters", () => {
+  assert.match(auth, /async function allowRequest\(key, max, windowMs\)/);
+  assert.match(auth, /ON CONFLICT \(key_hash\) DO UPDATE SET/);
+  assert.match(auth, /Number\(result\.rows\[0\]\.hit_count\) <= max/);
+  assert.match(auth, /rateLimitChecks % 100 === 0/);
 });
 
 test("message history is cursor-paginated and bounded", () => {
@@ -277,7 +279,7 @@ test("OTP rate limits are database-backed, atomic, and store only hashed identif
   assert.match(auth, /async function allowRequest\(key, max, windowMs\)/);
   assert.match(auth, /createHash\("sha256"\)\.update\(String\(key\)\)\.digest\("hex"\)/);
   assert.match(auth, /ON CONFLICT \(key_hash\) DO UPDATE SET/);
-  assert.match(auth, /hit_count <= max/);
+  assert.match(auth, /Number\(result\.rows\[0\]\.hit_count\) <= max/);
   assert.match(auth, /await allowRequest\(/);
   for (const source of [schema, migration]) {
     assert.match(source, /CREATE TABLE IF NOT EXISTS (?:public\.)?api_rate_limits/);
