@@ -1,5 +1,5 @@
 import { withDatabase } from './database.mjs';
-const UUID = /^[0-9a-f-]{36}$/i;
+const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const MAX_SIGNAL_BYTES = 64 * 1024;
 const MAX_SIGNAL_MESSAGES_PER_MINUTE = 300;
 function cookieToken(request) { for (const part of String(request.headers.get('cookie') || '').split(';')) { const i = part.indexOf('='); if (i < 0 || part.slice(0, i).trim() !== 'lovemet_session') continue; try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return ''; } } return ''; }
