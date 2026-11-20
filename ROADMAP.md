@@ -75,7 +75,7 @@ Deployment is intentionally postponed until the application has been implemented
 ## Database status
 - [x] Supabase PostgreSQL project connected and active
 - [x] Shared OTP rate-limit table created with RLS enabled and client-role privileges revoked
-- [x] Core tables created and verified: users, otp_challenges, sessions, contact_requests, messages, call_invites, user_blocks, user_reports
+- [x] Core tables created and verified: users, otp_challenges, sessions, contact_requests, messages, call_invites, user_blocks, user_reports, api_rate_limits
 - [x] RLS enabled on all eight tables; no client policies granted (server-side API owns access)
 - [ ] Backend hosting DATABASE_URL and OTP_HASH_SECRET configuration
 - [ ] Live database + SMS integration tests
