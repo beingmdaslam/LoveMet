@@ -18,8 +18,8 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // Never cache authenticated API responses, signaling traffic, or user data.
-  if (url.pathname.startsWith("/api/") || url.pathname === "/signal") return;
+  // Never cache authenticated API responses, chat/signaling traffic, or user data.
+  if (url.pathname.startsWith("/api/") || url.pathname === "/signal" || url.pathname === "/chat") return;
 
   if (request.mode === "navigate") {
     event.respondWith(
