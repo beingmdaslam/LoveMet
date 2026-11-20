@@ -1,0 +1,11 @@
+{
+  "name": "LoveMet Video Calling",
+  "short_name": "LoveMet",
+  "description": "Private one-to-one video calling prototype",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#100b12",
+  "theme_color": "#100b12",
+  "icons": []
+}
