@@ -29,7 +29,7 @@ test('call room preserves initiator identity through the 25-second reconnect gra
  await room.webSocketMessage(a, JSON.stringify({ type: 'join', roomId })); await room.webSocketMessage(b, JSON.stringify({ type: 'join', roomId }));
  a.readyState = 3; await room.webSocketClose(a, 1006, 'network lost');
  assert.ok(b.sent.some(message => message.type === 'peer-disconnected'));
- const key = 'reconnect:' + roomId + ':u1'; assert.ok(values.has(key));
+ const key = 'reconnect:' + roomId + ':u1'; assert.ok(values.has(key)); assert.deepEqual(ctx.getWebSockets().map(item => item.deserializeAttachment().userId), ['u2']);
  const rejoined = socket('u1'); sockets.push(rejoined); await room.webSocketMessage(rejoined, JSON.stringify({ type: 'join', roomId }));
  assert.deepEqual(rejoined.sent[0], { type: 'joined', roomId, isInitiator: true, reconnected: true });
  assert.ok(b.sent.some(message => message.type === 'peer-rejoined')); assert.equal(values.has(key), false);
