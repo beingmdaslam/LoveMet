@@ -22,3 +22,21 @@ test('call endpoints reject unauthenticated requests', async () => {
  const response = await handleCallsRead(new Request('https://lovemet.example/api/calls/history'), { async query() { return { rowCount: 0, rows: [] }; } }, {});
  assert.equal(response.status, 401);
 });
+test('incoming invite polling expires ringing and accepted calls only for the signed-in participant', async () => {
+ const client = db();
+ const response = await handleCallsRead(new Request('https://lovemet.example/api/calls/invites', { headers: { cookie: 'lovemet_session=' + token } }), client, {});
+ assert.equal(response.status, 200); assert.deepEqual(await response.json(), { invites: [] });
+ const updates = client.calls.filter(call => call.sql.startsWith('UPDATE call_invites'));
+ assert.equal(updates.length, 2);
+ assert.ok(updates[0].sql.includes("status = 'missed'")); assert.ok(updates[0].sql.includes('expires_at <= NOW()'));
+ assert.ok(updates[1].sql.includes("status = 'ended'")); assert.ok(updates[1].sql.includes("status = 'accepted'"));
+ assert.deepEqual(updates[0].args, ['u1']); assert.deepEqual(updates[1].args, ['u1']);
+});
+
+test('call status lookup is scoped to the current participant and rejects unknown invitations', async () => {
+ const client = db();
+ const response = await handleCallsRead(new Request('https://lovemet.example/api/calls/status?inviteId=11111111-1111-4111-8111-111111111111', { headers: { cookie: 'lovemet_session=' + token } }), client, {});
+ assert.equal(response.status, 404);
+ assert.deepEqual(client.calls.at(-1).args, ['11111111-1111-4111-8111-111111111111', 'u1']);
+ assert.ok(client.calls.at(-1).sql.includes('(caller_id = $2 OR callee_id = $2)'));
+});
