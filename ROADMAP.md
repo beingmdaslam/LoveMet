@@ -14,8 +14,8 @@ Deployment is intentionally postponed until the application has been implemented
 - [ ] Call permission and device compatibility testing
 
 ## Phase 2 — Accounts and profiles
-- [ ] Phone-number registration and OTP verification (security primitives and initial PostgreSQL schema committed; delivery/API flow still pending)
-- [ ] Secure sessions, logout, account recovery and rate limits (token primitives committed; persistent session flow and rate limits still pending)
+- [x] Phone OTP request/verification API foundation (PostgreSQL + Twilio adapter; requires deployment environment credentials and live integration test)
+- [x] Persistent opaque sessions, HttpOnly cookie, logout/revocation and basic process-local rate limits (live deployment verification still pending)
 - [ ] Display name, username, avatar and profile editing
 - [ ] Privacy controls and block/report tools
 
