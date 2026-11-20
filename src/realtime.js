@@ -17,6 +17,15 @@ function addClient(userId, socket) {
   return true;
 }
 
+function publishUser(userId, payload) {
+  const sockets = clients.get(userId);
+  if (!sockets) return;
+  const data = JSON.stringify(payload);
+  for (const socket of sockets) {
+    if (socket.readyState === WebSocket.OPEN) socket.send(data);
+  }
+}
+
 function publishReadReceipt(senderId, recipientId, messageIds, readAt) {
   const sockets = clients.get(senderId);
   if (!sockets || !messageIds.length) return;
