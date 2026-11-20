@@ -1,4 +1,4 @@
--- Shared OTP rate limits across backend instances.
+-- Shared API rate limits across backend instances.
 CREATE TABLE IF NOT EXISTS public.api_rate_limits (
   key_hash TEXT PRIMARY KEY CHECK (char_length(key_hash) = 64),
   hit_count INTEGER NOT NULL CHECK (hit_count > 0),
