@@ -189,3 +189,13 @@ test("message creation rechecks contact and block state under the shared pair lo
   assert.match(route, /await client\.query\("COMMIT"\)/);
   assert.match(route, /client\.release\(\)/);
 });
+
+
+test("OTP issuance serializes per phone and delivers only the current challenge", () => {
+  const requestRoute = auth.slice(auth.indexOf('pathname === "/api/auth/request-otp"'), auth.indexOf('pathname === "/api/auth/verify-otp"'));
+  assert.match(requestRoute, /pg_advisory_xact_lock\(hashtextextended\(\$1::text, 3\)\)/);
+  assert.match(requestRoute, /UPDATE otp_challenges SET consumed_at = NOW\(\) WHERE phone_e164 = \$1 AND consumed_at IS NULL/);
+  assert.match(requestRoute, /await sendSms\(phone, code\)/);
+  assert.match(requestRoute, /await client\.query\("COMMIT"\)/);
+  assert.match(requestRoute, /client\.release\(\)/);
+});
