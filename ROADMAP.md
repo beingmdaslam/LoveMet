@@ -4,7 +4,7 @@ Deployment is intentionally postponed until the application has been implemented
 
 ## Phase 1 — Calling foundation
 - [x] Responsive 1-to-1 calling screen
-- [x] Room-code signaling server
+- [x] WebSocket signaling server (invitation UUID rooms)
 - [x] Camera and microphone controls
 - [x] Leave-call control
 - [x] Authenticated call invitations and accept/decline flow
@@ -62,10 +62,10 @@ Deployment is intentionally postponed until the application has been implemented
 
 ## Database status
 - [x] Supabase PostgreSQL project connected and active
-- [x] Core tables created and verified: users, otp_challenges, sessions, contact_requests, messages
-- [x] RLS enabled on all five tables; no client policies granted (server-side API owns access)
+- [x] Core tables created and verified: users, otp_challenges, sessions, contact_requests, messages, call_invites
+- [x] RLS enabled on all six tables; no client policies granted (server-side API owns access)
 - [ ] Backend hosting DATABASE_URL and OTP_HASH_SECRET configuration
 - [ ] Live database + SMS integration tests
 
 ## Current status
-The repository now contains the early 1-to-1 calling prototype, OTP/session backend foundations, contacts/chat APIs, and a first account/contacts/chat frontend integration. The new UI has not yet been verified against a live PostgreSQL database or SMS provider. The project is not production-ready.
+The repository now contains OTP/session foundations, contacts and chat, authenticated one-to-one call invitations, accepted-invite-only WebSocket signaling, incoming call handling, call history, and an installable PWA shell. The new UI has not yet been verified against a live PostgreSQL database or SMS provider. The project is not production-ready.
