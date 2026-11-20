@@ -27,6 +27,24 @@
 <body>
 <main>
   <header class="brand"><h1>LoveMet</h1><p>Meet face to face, wherever you are.</p></header>
+  <section class="panel" style="margin-bottom:16px">
+    <h2 style="margin:0 0 14px">Your LoveMet account</h2>
+    <div id="authArea" class="subpanel">
+      <p class="hint">Sign in with your phone number in international format, for example +9665XXXXXXXX.</p>
+      <label for="phone">Phone number</label><input class="field" id="phone" type="tel" autocomplete="tel" placeholder="+9665XXXXXXXX">
+      <div class="rowActions"><button id="sendOtpBtn">Send verification code</button></div>
+      <div id="otpArea" class="hidden"><label for="otp">6-digit verification code</label><input class="field" id="otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="Enter code"><button id="verifyOtpBtn">Verify and sign in</button></div>
+      <p class="hint" id="authStatus" role="status">OTP sign-in becomes active after database and SMS setup.</p>
+    </div>
+    <div id="signedInArea" class="hidden">
+      <div class="accountGrid">
+        <div class="subpanel"><h2>Profile</h2><label for="displayName">Display name</label><input class="field" id="displayName" maxlength="40" placeholder="Your name"><label for="username">Username</label><input class="field" id="username" maxlength="20" placeholder="your_username"><button id="saveProfileBtn">Save profile</button><p class="hint" id="profileStatus"></p></div>
+        <div class="subpanel"><h2>Find people</h2><input class="field" id="searchUsername" maxlength="20" placeholder="Search username"><button id="searchBtn">Search</button><div id="searchResults" class="list"></div><h2 style="margin-top:16px">Contact requests</h2><div id="incomingRequests" class="list"></div></div>
+      </div>
+      <div class="subpanel"><h2>Your contacts</h2><div id="contactsList" class="list"></div><div id="chatArea" class="hidden"><h2 id="chatTitle" style="margin-top:18px">Chat</h2><div id="chatLog" class="chatLog" aria-live="polite"></div><div class="join"><input id="messageInput" placeholder="Write a message" maxlength="4000"><button id="sendMessageBtn">Send</button></div><p class="hint" id="chatStatus"></p></div></div>
+      <div class="rowActions" style="margin-top:12px"><button class="secondary" id="refreshAccountBtn">Refresh</button><button class="danger" id="logoutBtn">Sign out</button></div>
+    </div>
+  </section>
   <section class="panel">
     <div class="join">
       <input id="room" maxlength="24" placeholder="Enter room code" autocomplete="off" aria-label="Room code">
@@ -45,6 +63,38 @@
     <p class="note">Prototype notice: this is an early 1-to-1 calling build. It has no account login or end-to-end identity verification yet. For reliable calls across mobile networks, a properly configured TURN server and HTTPS deployment will be required. Camera and microphone work on HTTPS or localhost.</p>
   </section>
 </main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const auth=$("authArea"), signed=$("signedInArea");
+  let selected=null;
+  async function api(url,options={}) {
+    const response=await fetch(url,{credentials:"same-origin",...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
+    const data=await response.json().catch(()=>({error:"Unexpected server response."}));
+    if(!response.ok) throw new Error(data.error||"Request failed.");
+    return data;
+  }
+  const say=(id,value)=>$(id).textContent=value||"";
+  function action(label,handler,kind="secondary"){const b=document.createElement("button");b.textContent=label;b.className=kind;b.addEventListener("click",handler);return b;}
+  async function load(){
+    try{const d=await api("/api/auth/me");auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";await Promise.all([contacts(),requests()]);}
+    catch{signed.classList.add("hidden");auth.classList.remove("hidden");}
+  }
+  $("sendOtpBtn").onclick=async()=>{try{say("authStatus","Sending…");await api("/api/auth/request-otp",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim()})});$("otpArea").classList.remove("hidden");say("authStatus","If SMS is configured, a code has been sent.");}catch(e){say("authStatus",e.message);}};
+  $("verifyOtpBtn").onclick=async()=>{try{const d=await api("/api/auth/verify-otp",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim(),code:$("otp").value.trim()})});auth.classList.add("hidden");signed.classList.remove("hidden");$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";say("authStatus","Signed in.");await Promise.all([contacts(),requests()]);}catch(e){say("authStatus",e.message);}};
+  $("saveProfileBtn").onclick=async()=>{try{const d=await api("/api/profile",{method:"PATCH",body:JSON.stringify({displayName:$("displayName").value,username:$("username").value})});$("displayName").value=d.user.display_name||"";$("username").value=d.user.username||"";say("profileStatus","Profile saved.");}catch(e){say("profileStatus",e.message);}};
+  $("searchBtn").onclick=async()=>{const box=$("searchResults");box.replaceChildren();try{const d=await api("/api/users/search?username="+encodeURIComponent($("searchUsername").value.trim().replace(/^@/,"")));if(!d.users.length){box.textContent="No matching users.";return;}d.users.forEach(u=>{const item=document.createElement("div");item.className="listItem";const label=document.createElement("span");label.textContent="@"+(u.username||"user");item.append(label,action("Add",async()=>{try{await api("/api/contacts/request",{method:"POST",body:JSON.stringify({username:u.username})});label.textContent+=" · Request sent";}catch(e){label.textContent+=" · "+e.message;}},""));box.append(item);});}catch(e){box.textContent=e.message;}};
+  async function requests(){const box=$("incomingRequests");box.replaceChildren();try{const d=await api("/api/contacts/requests");if(!d.requests.length){box.textContent="No pending requests.";return;}d.requests.forEach(r=>{const item=document.createElement("div");item.className="listItem";const label=document.createElement("span");label.textContent="@"+(r.username||r.display_name||"user");item.append(label,action("Accept",async()=>{try{await api("/api/contacts/respond",{method:"POST",body:JSON.stringify({requestId:r.id,action:"accept"})});await requests();await contacts();}catch(e){label.textContent=e.message;}},""),action("Decline",async()=>{try{await api("/api/contacts/respond",{method:"POST",body:JSON.stringify({requestId:r.id,action:"decline"})});await requests();}catch(e){label.textContent=e.message;}}));box.append(item);});}catch(e){box.textContent=e.message;}}
+  async function contacts(){const box=$("contactsList");box.replaceChildren();try{const d=await api("/api/contacts");if(!d.contacts.length){box.textContent="No contacts yet. Search a username to add someone.";return;}d.contacts.forEach(u=>box.append(action(u.display_name||("@"+u.username),()=>openChat(u))));}catch(e){box.textContent=e.message;}}
+  async function openChat(u){selected=u.id;$("chatArea").classList.remove("hidden");$("chatTitle").textContent="Chat with "+(u.display_name||("@"+u.username));await messages();}
+  async function messages(){if(!selected)return;const box=$("chatLog");box.replaceChildren();try{const d=await api("/api/messages?contactId="+encodeURIComponent(selected));d.messages.forEach(m=>{const b=document.createElement("div");b.className="bubble";b.textContent=m.body;box.append(b);});box.scrollTop=box.scrollHeight;}catch(e){say("chatStatus",e.message);}}
+  async function sendMessage(){const input=$("messageInput"),value=input.value.trim();if(!selected||!value)return;try{await api("/api/messages",{method:"POST",body:JSON.stringify({contactId:selected,message:value})});input.value="";say("chatStatus","Message sent.");await messages();}catch(e){say("chatStatus",e.message);}}
+  $("sendMessageBtn").onclick=sendMessage;$("messageInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
+  $("refreshAccountBtn").onclick=load;
+  $("logoutBtn").onclick=async()=>{try{await api("/api/auth/logout",{method:"POST",body:"{}"});}catch{}selected=null;signed.classList.add("hidden");auth.classList.remove("hidden");say("authStatus","Signed out.");};
+  load();
+})();
+</script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
