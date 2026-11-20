@@ -178,6 +178,12 @@ async function handleSocialRequest(req, res, pathname) {
         json(res, 403, { error: "Messages are available only with accepted contacts." });
         return true;
       }
+      await pool.query(
+        `UPDATE messages
+         SET delivered_at = COALESCE(delivered_at, NOW()), read_at = NOW()
+         WHERE sender_id = $2 AND recipient_id = $1 AND read_at IS NULL`,
+        [user.id, contactId]
+      );
       const result = await pool.query(
         `SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at
          FROM messages
