@@ -189,3 +189,11 @@ test('call room rejects missing, malformed, or cross-origin signaling handshakes
  assert.equal(malformedRoom.status, 400);
  assert.equal(sockets.length, 0);
 });
+test('call room closes authenticated sockets that never join within two minutes', async () => {
+ const { room, sockets } = setup();
+ const peer = socket('u1');
+ peer.serializeAttachment({ ...peer.deserializeAttachment(), connectedAt: Date.now() - 120001, joined: false, roomId: null });
+ sockets.push(peer);
+ await room.alarm();
+ assert.deepEqual(peer.closed, { code: 1008, reason: 'Call join timed out' });
+});
