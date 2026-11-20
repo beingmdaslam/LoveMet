@@ -54,3 +54,21 @@ test("withDatabase does not call end when connect itself fails", async () => {
   );
   assert.equal(ended, false);
 });
+
+test("schema readiness requires the full app schema and nullable phone plus email OTP", async () => {
+  let sql = "";
+  const ready = await (await import("../cloudflare/database.mjs")).isSchemaReady({
+    async query(statement) { sql = statement; return { rows: [{ ready: true }] }; }
+  });
+  assert.equal(ready, true);
+  for (const required of ["public.users", "public.email_otp_challenges", "public.sessions", "public.call_invites", "public.api_rate_limits", "email_verified_at", "is_nullable = 'YES'"]) {
+    assert.ok(sql.includes(required), "readiness query must check " + required);
+  }
+});
+
+test("schema readiness stays false until the email OTP migration is applied", async () => {
+  const ready = await (await import("../cloudflare/database.mjs")).isSchemaReady({
+    async query() { return { rows: [{ ready: false }] }; }
+  });
+  assert.equal(ready, false);
+});
