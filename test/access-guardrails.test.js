@@ -75,3 +75,13 @@ test("blocking and contact requests share a transaction-scoped pair lock", () =>
   assert.match(requestRoute, /blockedInsideLock/);
   assert.match(requestRoute, /Contact requests are unavailable between these accounts/);
 });
+
+
+test("report daily limit is serialized per reporter", () => {
+  const reportRoute = social.slice(social.indexOf('pathname === "/api/users/report"'), social.indexOf('pathname === "/api/contacts" && req.method === "GET"'));
+  assert.match(reportRoute, /pg_advisory_xact_lock\(hashtextextended\(\$1::text, 1\)\)/);
+  assert.match(reportRoute, /await client\.query\("BEGIN"\)/);
+  assert.match(reportRoute, /SELECT COUNT\(\*\)::INTEGER AS total FROM user_reports/);
+  assert.match(reportRoute, /await client\.query\("COMMIT"\)/);
+  assert.match(reportRoute, /client\.release\(\)/);
+});
