@@ -61,7 +61,7 @@ test("schema readiness requires the full app schema and nullable phone plus emai
     async query(statement) { sql = statement; return { rows: [{ ready: true }] }; }
   });
   assert.equal(ready, true);
-  for (const required of ["public.users", "public.email_otp_challenges", "public.sessions", "public.call_invites", "public.api_rate_limits", "email_verified_at", "is_nullable = 'YES'"]) {
+  for (const required of ["public.users", "public.email_otp_challenges", "public.sessions", "public.call_invites", "public.api_rate_limits", "email_verified_at", "is_nullable = 'YES'", "users_email_unique_idx", "phone_e164%", "relrowsecurity = TRUE"]) {
     assert.ok(sql.includes(required), "readiness query must check " + required);
   }
 });
