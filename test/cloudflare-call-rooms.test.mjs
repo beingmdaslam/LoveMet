@@ -137,6 +137,6 @@ test('call room permits a teardown hangup after the invitation authorization has
  await room.webSocketMessage(b, JSON.stringify({ type: 'join', roomId }));
  room.authorize = async () => ({ rowCount: 0, rows: [] });
  await room.webSocketMessage(a, JSON.stringify({ type: 'hangup' }));
- assert.deepEqual(b.sent.at(-1), { type: 'hangup', data: undefined });
+ assert.deepEqual(b.sent.at(-1), { type: 'hangup' });
  assert.equal(a.closed, null);
 });
