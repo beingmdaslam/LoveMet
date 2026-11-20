@@ -35,7 +35,7 @@ Deployment is intentionally postponed until the application has been implemented
 - [x] Incoming call prompt with accept/decline
 - [ ] Missed, incoming and outgoing call history
 - [x] Basic call status and end-call state
-- [ ] Call duration and persistent call history
+- [x] Basic call history and elapsed duration (when both start/end timestamps are recorded)
 - [ ] Push notifications for incoming calls/messages
 
 ## Phase 5 — Android experience
