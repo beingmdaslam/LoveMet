@@ -9,6 +9,7 @@ const { addClient } = require("./src/realtime");
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const rooms = new Map();
+const CALL_RECONNECT_GRACE_MS = 25000;
 
 const server = http.createServer(async (req, res) => {
   const pathname = new URL(req.url, "http://localhost").pathname;
@@ -182,7 +183,21 @@ wss.on("connection", (ws, req) => {
         room = new Set();
         rooms.set(roomId, room);
       }
-      if ([...room].some(peer => peer.authUser && peer.authUser.id === ws.authUser.id)) {
+      const existingMember = [...room].find(peer => peer.authUser && peer.authUser.id === ws.authUser.id);
+      if (existingMember) {
+        if (existingMember.disconnected && existingMember.reconnectTimer) {
+          clearTimeout(existingMember.reconnectTimer);
+          room.delete(existingMember);
+          ws.roomId = roomId;
+          ws.isInitiator = existingMember.isInitiator;
+          room.add(ws);
+          send(ws, { type: "joined", roomId, isInitiator: ws.isInitiator, reconnected: true });
+          for (const peer of room) {
+            if (peer !== ws) send(peer, { type: "peer-rejoined" });
+          }
+          send(ws, { type: "peer-rejoined" });
+          return;
+        }
         send(ws, { type: "error", message: "This account is already connected to the call." });
         return;
       }
@@ -192,8 +207,9 @@ wss.on("connection", (ws, req) => {
       }
 
       ws.roomId = roomId;
+      ws.isInitiator = room.size === 0;
       room.add(ws);
-      send(ws, { type: "joined", roomId, isInitiator: room.size === 1 });
+      send(ws, { type: "joined", roomId, isInitiator: ws.isInitiator });
       if (room.size === 2) {
         for (const peer of room) send(peer, { type: "peer-joined" });
       }
@@ -240,11 +256,31 @@ wss.on("connection", (ws, req) => {
   });
 
   ws.on("close", () => {
-    const room = ws.roomId && rooms.get(ws.roomId);
-    if (!room) return;
+    const roomId = ws.roomId;
+    const room = roomId && rooms.get(roomId);
+    if (!room || !room.has(ws)) return;
+
+    // Keep a short-lived identity placeholder so a temporary mobile network
+    // interruption can rejoin without ending the accepted call.
     room.delete(ws);
-    for (const peer of room) send(peer, { type: "peer-left" });
-    if (room.size === 0) rooms.delete(ws.roomId);
+    const disconnected = {
+      authUser: ws.authUser,
+      roomId,
+      isInitiator: ws.isInitiator,
+      disconnected: true,
+      readyState: WebSocket.CLOSED,
+      reconnectTimer: null
+    };
+    room.add(disconnected);
+    for (const peer of room) {
+      if (peer !== disconnected) send(peer, { type: "peer-disconnected" });
+    }
+    disconnected.reconnectTimer = setTimeout(() => {
+      if (!room.has(disconnected)) return;
+      room.delete(disconnected);
+      for (const peer of room) send(peer, { type: "peer-left" });
+      if (room.size === 0) rooms.delete(roomId);
+    }, CALL_RECONNECT_GRACE_MS);
   });
 });
 
