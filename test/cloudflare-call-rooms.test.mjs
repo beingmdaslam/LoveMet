@@ -96,3 +96,17 @@ test('concurrent room joins cannot admit duplicate accounts or a third participa
  assert.ok(a2.sent.some(message => message.type === 'error') || a1.sent.some(message => message.type === 'error'));
  assert.ok(c.sent.some(message => message.type === 'error'));
 });
+
+test('a delayed close event from an old socket cannot overwrite a rejoined participant', async () => {
+ const { room, sockets, values } = setup();
+ const oldSocket = socket('u1'); sockets.push(oldSocket);
+ await room.webSocketMessage(oldSocket, JSON.stringify({ type: 'join', roomId }));
+ oldSocket.readyState = 3;
+ await room.webSocketClose(oldSocket, 1006, 'network lost');
+ const newSocket = socket('u1'); sockets.push(newSocket);
+ await room.webSocketMessage(newSocket, JSON.stringify({ type: 'join', roomId }));
+ await room.webSocketClose(oldSocket, 1006, 'late close callback');
+ const member = values.get('member:' + roomId + ':u1');
+ assert.equal(member.connected, true);
+ assert.equal(member.socketId, newSocket.deserializeAttachment().socketId);
+});
