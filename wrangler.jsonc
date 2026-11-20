@@ -11,6 +11,12 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "27dbf115fbff4fc79df45e4af2f82bda"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {
