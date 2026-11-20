@@ -109,7 +109,7 @@ test("brief signaling disconnects preserve media and retry the accepted call", (
   assert.match(html, /peer\.restartIce\(\)/);
   assert.match(html, /if \(callReconnectTimer\) \{ window\.clearTimeout\(callReconnectTimer\)/);
   assert.match(html, /localStream\.getTracks\(\)\.forEach\(track => track\.stop\(\)\)/);
-  assert.match(signaling, /CALL_RECONNECT_GRACE_MS = 25000/);
+  assert.match(server, /CALL_RECONNECT_GRACE_MS = 25000/);
   assert.match(signaling, /disconnected: true/);
   assert.match(signaling, /type: "peer-disconnected"/);
   assert.match(signaling, /type: "peer-left"/);
