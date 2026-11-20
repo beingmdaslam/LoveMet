@@ -458,14 +458,27 @@ async function handleSocialRequest(req, res, pathname) {
          WHERE sender_id = $2 AND recipient_id = $1 AND read_at IS NULL`,
         [user.id, contactId]
       );
+      const beforeRaw = url.searchParams.get("before");
+      let before = null;
+      if (beforeRaw !== null) {
+        const parsedBefore = new Date(beforeRaw);
+        if (!Number.isFinite(parsedBefore.getTime())) {
+          json(res, 400, { error: "Invalid message cursor." });
+          return true;
+        }
+        before = parsedBefore.toISOString();
+      }
       const result = await pool.query(
         `SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at
          FROM messages
-         WHERE (sender_id = $1 AND recipient_id = $2) OR (sender_id = $2 AND recipient_id = $1)
-         ORDER BY created_at DESC LIMIT 50`,
-        [user.id, contactId]
+         WHERE ((sender_id = $1 AND recipient_id = $2) OR (sender_id = $2 AND recipient_id = $1))
+           AND ($3::timestamptz IS NULL OR created_at < $3::timestamptz)
+         ORDER BY created_at DESC, id DESC LIMIT 51`,
+        [user.id, contactId, before]
       );
-      json(res, 200, { messages: result.rows.reverse() });
+      const hasMore = result.rows.length > 50;
+      const page = result.rows.slice(0, 50).reverse();
+      json(res, 200, { messages: page, hasMore });
       return true;
     }
 
