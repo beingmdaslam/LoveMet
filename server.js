@@ -47,11 +47,23 @@ const server = http.createServer(async (req, res) => {
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "strict-origin-when-cross-origin",
-      "Permissions-Policy": "camera=(self), microphone=(self), geolocation=()"
+      "Permissions-Policy": "camera=(self), microphone=(self), geolocation=()",
+      "Cross-Origin-Resource-Policy": "same-origin",
+      "X-Permitted-Cross-Domain-Policies": "none",
+      "Cache-Control": (ext === ".html" || path.basename(filePath) === "sw.js")
+        ? "no-cache"
+        : "public, max-age=300"
     });
     res.end(data);
   });
 });
+
+// Bound slow/incomplete HTTP requests and reduce resource exhaustion risk.
+server.requestTimeout = 30_000;
+server.headersTimeout = 15_000;
+server.keepAliveTimeout = 5_000;
+server.maxHeadersCount = 100;
+server.maxRequestsPerSocket = 1_000;
 
 const chatWss = new WebSocket.Server({ server, path: "/chat", maxPayload: 1024, perMessageDeflate: false });
 
