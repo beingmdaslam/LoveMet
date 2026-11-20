@@ -12,6 +12,12 @@ const pool = process.env.DATABASE_URL ? new Pool({
   connectionTimeoutMillis: 5000
 }) : null;
 
+if (pool) {
+  pool.on("error", (error) => {
+    console.error("LoveMet PostgreSQL idle-client error:", error.message);
+  });
+}
+
 const requestLimits = new Map();
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 8 * 1024;
