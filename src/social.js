@@ -1,4 +1,4 @@
-const { pool } = require("./auth");
+const { pool, allowRequest } = require("./auth");
 const { isSameOriginRequest } = require("./security");
 const { publishUser, publishMessage, publishReadReceipt } = require("./realtime");
 
@@ -90,6 +90,11 @@ async function handleSocialRequest(req, res, pathname) {
     }
 
     if (pathname === "/api/users/search" && req.method === "GET") {
+      if (!(await allowRequest(`search:${user.id}`, 60, 60 * 1000))) {
+        json(res, 429, { error: "Search limit reached. Try again shortly." });
+        return true;
+      }
+
       const term = String(new URL(req.url, "http://localhost").searchParams.get("username") || "")
         .trim().toLowerCase().replace(/^@/, "");
       if (!/^[a-z0-9_]{3,20}$/.test(term)) {
@@ -251,6 +256,11 @@ async function handleSocialRequest(req, res, pathname) {
     }
 
     if (pathname === "/api/contacts/request" && req.method === "POST") {
+      if (!(await allowRequest(`contact-request:${user.id}`, 20, 60 * 60 * 1000))) {
+        json(res, 429, { error: "You have sent too many contact requests. Try again later." });
+        return true;
+      }
+
       const body = await readJson(req);
       const username = String(body.username || "").trim().toLowerCase().replace(/^@/, "");
       if (!/^[a-z0-9_]{3,20}$/.test(username)) {
@@ -475,6 +485,11 @@ async function handleSocialRequest(req, res, pathname) {
     }
 
     if (pathname === "/api/calls/invite" && req.method === "POST") {
+      if (!(await allowRequest(`call-invite:${user.id}`, 10, 60 * 60 * 1000))) {
+        json(res, 429, { error: "Too many call invitations. Try again later." });
+        return true;
+      }
+
       const body = await readJson(req);
       const contactId = String(body.contactId || "");
       if (!/^[0-9a-f-]{36}$/i.test(contactId) || contactId === user.id) {
@@ -702,6 +717,11 @@ async function handleSocialRequest(req, res, pathname) {
     }
 
     if (pathname === "/api/messages" && req.method === "POST") {
+      if (!(await allowRequest(`message-send:${user.id}`, 60, 60 * 1000))) {
+        json(res, 429, { error: "You are sending messages too quickly. Try again shortly." });
+        return true;
+      }
+
       const body = await readJson(req);
       const contactId = String(body.contactId || "");
       const message = String(body.message || "").trim();
