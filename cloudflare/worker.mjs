@@ -1,3 +1,5 @@
+import { withDatabase } from "./database.mjs";
+
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store",
@@ -30,7 +32,15 @@ export default {
       return unavailable("API");
     }
     if (pathname === "/healthz") {
-      return unavailable("backend");
+      try {
+        await withDatabase(env, client => client.query("SELECT 1 AS ok"));
+        return new Response(JSON.stringify({ ok: true, database: "connected" }), {
+          status: 200,
+          headers: JSON_HEADERS
+        });
+      } catch {
+        return unavailable("backend");
+      }
     }
     if (pathname === "/chat" || pathname === "/signal") {
       return unavailable("real-time connection");
