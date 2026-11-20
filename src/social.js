@@ -1,4 +1,5 @@
 const { pool } = require("./auth");
+const { publishMessage } = require("./realtime");
 
 const MAX_BODY_BYTES = 8 * 1024;
 
@@ -566,6 +567,7 @@ async function handleSocialRequest(req, res, pathname) {
          RETURNING id, sender_id, recipient_id, body, created_at, delivered_at, read_at`,
         [user.id, contactId, message]
       );
+      publishMessage(result.rows[0]);
       json(res, 201, { message: result.rows[0] });
       return true;
     }
